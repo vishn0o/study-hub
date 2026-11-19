@@ -2,6 +2,21 @@
    Keep this in sync with the parser in app.js (marker names). */
 const AGENT_PROMPT = `You are converting my study material into a "Study Hub" import file.
 
+BEFORE YOU WRITE ANYTHING — PREFLIGHT (one message, then wait for my answers)
+Ask me exactly these three questions and wait:
+1. "When is your exam — the exact date and start time?"
+2. "How many effective study hours can you realistically focus in that window (not calendar time)?"
+3. "Of those hours, roughly how many do you want to use for study?"
+
+From my answers decide the timing mode and set @@EXAMDATE to the datetime I gave you (format: YYYY-MM-DDTHH:MM). Do not guess it. If I don't know, ask. Do not default to 9 AM unless I say so.
+
+=== TIMING MODES ===
+CRASH (<10 effective hours) — prune to PYQ-heavy, high-ROI topics only; mark skipped topics as SKIP; short schedule honest to the hours I said; 2 mocks at the end.
+STANDARD (10–36 effective hours) — cover every PYQ topic; trim at the margins; full skeleton per topic; locked mock at the end.
+DEEP (36+ effective hours) — cover the full syllabus; full skeleton plus spaced sessions; mocks scattered.
+
+QUALITY IS CONSTANT ACROSS ALL MODES — worked examples, step-by-step answers, model answers, 5 practice questions per topic. Never drop depth to save space. Always append the DATA BLOCK at the very end.
+
 WHAT I WILL ATTACH
 1. My syllabus or unit list.
 2. My previous-year question papers (PYQs).
@@ -12,7 +27,7 @@ YOUR TASK
 2. For each topic, write the key concepts, rules, formulas and memory hooks.
 3. For each topic, include every relevant PYQ you were given, each with a complete answer and short solving steps taken from the notes.
 4. Use the marks printed on the paper. If marks are missing, estimate them conservatively.
-5. Produce ONE PDF. Put a short human-readable study guide first if you like, then the machine-readable DATA BLOCK at the very end.
+5. Produce ONE PDF, sized to my effective hours using the timing mode rules above. Put a short human-readable study guide first if you like, then the machine-readable DATA BLOCK at the very end.
 
 FORMAT RULES (critical)
 - Use plain ASCII only: straight quotes ( ' and " ), hyphens, no smart quotes, no curly apostrophes, no emoji.
@@ -32,7 +47,7 @@ DATA BLOCK FORMAT
 @@EXAM <total marks in the paper, whole number>
 @@TARGET <marks you want to reach, whole number>
 @@DESC <one-line description>
-@@EXAMDATE <exam date and time, e.g. 2026-05-02 or 2026-05-02T09:00, optional>
+@@EXAMDATE <exam date and time, e.g. 2026-05-02T09:00 — REQUIRED, from my answer>
 @@TOPIC <topic title>
 @@MARKS <marks this topic is worth — number only>
 @@EVERY <true if this topic appears on EVERY paper / is high ROI, otherwise false>
@@ -123,6 +138,7 @@ QUALITY CHECK BEFORE YOU FINISH
 - Every topic has concepts and questions.
 - The marks add up sensibly and match the paper.
 - Nothing appears after @@END.
+- @@EXAMDATE reflects the datetime I gave you in preflight — never invented or guessed.
 `;
 
 const ATTACHMENTS = [

@@ -546,10 +546,10 @@
       v.innerHTML = `<section class="welcome">
         <div class="mark">SH</div>
         <h2>Track any subject from one PDF</h2>
-        <p>Use the built-in prompt with Gemini, ChatGPT or any agent. It returns a structured study PDF — upload it here and your notes, questions, answers and progress tracker are ready. Nothing leaves your browser.</p>
+        <p>Use the built-in prompt with Gemini, ChatGPT or any agent. It will ask for your exam date/time and effective hours, then return a structured study PDF covering everything in one go — upload it here and your notes, questions, answers and progress tracker are ready. Nothing leaves your browser.</p>
         <div class="welcome-actions">
           <button class="btn btn-primary" id="welcomeAdd" type="button">Get the agent prompt →</button>
-          <button class="btn btn-outline" id="welcomeSample" type="button">Load the DSA sample</button>
+          <button class="btn btn-outline" id="welcomeSample" type="button">Load the quick tour sample</button>
         </div>
       </section>`;
       const wa = $('#welcomeAdd'); if (wa) wa.addEventListener('click', openWizard);
@@ -1669,7 +1669,7 @@
   function openHelp() {
     openModal(`<h2>How Study Hub works</h2>
       <ul>
-        <li><strong>Bring your own PDF.</strong> Copy the agent prompt, attach your syllabus + PYQs + notes, and let Gemini/ChatGPT produce the structured PDF.</li>
+        <li><strong>Bring your own PDF.</strong> Copy the agent prompt ("Agent prompt" button) → paste into any LLM → it will ask for your exam date/time and effective hours → paste your syllabus + PYQs + notes → drop its PDF back in.</li>
         <li><strong>Everything is local.</strong> PDF parsing and storage happen in this browser. No server, no uploads.</li>
         <li><strong>Rate, don’t just tick.</strong> Every question gets “Got it / Fuzzy / Didn't get it”. Your predicted score is weighted by marks <em>and</em> confidence.</li>
         <li><strong>Spaced repetition.</strong> “Got it” schedules the question 1 → 3 → 7 → 15… days out; “Fuzzy” gets it back sooner; “Didn't get it” is due in 10 minutes. Tap <em>Reviews</em> to drill what’s due.</li>

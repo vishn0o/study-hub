@@ -1,6 +1,4 @@
-/* Built-in sample subject — a tiny illustrative demo that exercises the app.
-   The DSA Guarantee Plan (the original sample) is no longer shipped publicly;
-   if you want it, keep it locally on your machine. */
+/* Built-in sample subject — a tiny illustrative demo that exercises the app. */
 const SAMPLE_SUBJECT = {
   id: 'sample-quickstart',
   name: 'Study Hub — Quick Tour',
