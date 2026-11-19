@@ -139,11 +139,15 @@
       if (!theme) theme = p.dark ? 'dark' : 'light'; // migrate legacy boolean
       if (!THEME_ORDER.includes(theme)) theme = 'light';
       return { theme, selfTest: !!p.selfTest };
-    } catch (e) { return { theme: 'light', selfTest: false }; }
+    } catch (e) {
+      toast('Cannot read preferences — browser storage is unavailable.');
+      return { theme: 'light', selfTest: false };
+    }
   }
   let prefs = loadPrefs();
   function savePrefs() {
-    try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch (e) {}
+    try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); }
+    catch (e) { toast('Cannot save preferences — browser storage is unavailable or full.'); }
   }
   function applyPrefs() {
     document.documentElement.dataset.theme = prefs.theme;
@@ -181,7 +185,10 @@
           return { subjects: subs, activeId: s.activeId || null };
         }
       }
-    } catch (e) { console.warn('Could not read saved data', e); }
+    } catch (e) {
+      console.warn('Could not read saved data', e);
+      toast('Cannot read saved progress — browser storage is unavailable.');
+    }
     return blankState();
   }
 
@@ -2234,21 +2241,37 @@
     toast('Backup downloaded');
   }
 
+  function validateBackup(obj) {
+    if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return null;
+    if (Array.isArray(obj.subjects)) {
+      if (!obj.subjects.length || obj.subjects.length > MAX_SUBJECTS) return null;
+      if (!obj.subjects.every(s => s && typeof s === 'object' && Array.isArray(s.topics))) return null;
+      if (obj.activeId && !obj.subjects.some(s => s.id === obj.activeId)) return null;
+      return { kind: 'all', subjects: obj.subjects, activeId: obj.activeId || null };
+    }
+    if (Array.isArray(obj.topics) ||
+        (obj.subject && typeof obj.subject === 'object' && Array.isArray(obj.subject.topics))) {
+      return { kind: 'one', raw: obj };
+    }
+    return null;
+  }
+
   async function importBackup(file) {
     try {
       const text = await file.text();
       const obj = JSON.parse(text);
-      if (obj && Array.isArray(obj.subjects)) {
+      const plan = validateBackup(obj);
+      if (!plan) throw new Error('Unrecognised backup file');
+      if (plan.kind === 'all') {
         if (!confirm('Replace all current subjects with this backup?')) return;
-        state = { subjects: obj.subjects.map(normalizeSubject), activeId: obj.activeId || null };
-      } else if (obj && (Array.isArray(obj.topics) || obj.subject)) {
+        state = { subjects: plan.subjects.map(normalizeSubject), activeId: plan.activeId };
+      } else {
         if (state.subjects.length >= MAX_SUBJECTS) { toast('Maximum subjects reached'); return; }
-        const s = normalizeSubject(obj);
+        const s = normalizeSubject(plan.raw);
+        if (!s.topics.length) throw new Error('Backup has no topics');
         s.id = uid('sub');
         state.subjects.push(s);
         state.activeId = s.id;
-      } else {
-        throw new Error('Unrecognised backup file');
       }
       ensureIds(); save(); refresh(); toast('Backup imported');
     } catch (e) {
@@ -2457,13 +2480,17 @@
   /* ---------------- init ---------------- */
   applyPrefs();
   ensureIds();
-  if (!state.subjects.length && !localStorage.getItem('study-hub-seeded')) {
+  let seeded = true;
+  try { seeded = !!localStorage.getItem('study-hub-seeded'); }
+  catch (e) { toast('Cannot read saved progress — browser storage is unavailable.'); }
+  if (!state.subjects.length && !seeded) {
     const s = normalizeSubject(JSON.parse(JSON.stringify(SAMPLE_SUBJECT)));
     s.id = uid('sub');
     s.progress = { topics: {}, confidence: {}, review: {}, history: [] };
     state.subjects.push(s);
     state.activeId = s.id;
-    localStorage.setItem('study-hub-seeded', '1');
+    try { localStorage.setItem('study-hub-seeded', '1'); }
+    catch (e) { toast('Cannot save the sample subject — browser storage is unavailable or full.'); }
     save();
   }
   ensureIds();
