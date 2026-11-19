@@ -504,38 +504,51 @@
   function examStrip(s, st) {
     const days = s.examDate ? daysUntil(s.examDate) : null;
     if (!s.examDate) {
-      return `<div class="countdown-strip">
-        <div class="countdown-main">
-          <div class="cd-boxes" aria-hidden="true">
-            <div class="cd-box"><strong>--</strong><span>Hours</span></div>
-            <div class="cd-box"><strong>--</strong><span>Min</span></div>
-            <div class="cd-box"><strong>--</strong><span>Sec</span></div>
-          </div>
-          <div class="countdown-text"><strong>Set your exam date &amp; time</strong><span>Get a live countdown and a daily pace for this subject</span></div>
+      return `<section class="summary-strip summary-strip-empty" role="region" aria-label="Exam summary">
+        <div class="summary-empty">
+          <strong>Set your exam date &amp; time</strong>
+          <p class="summary-sub">Get a live countdown, your predicted score, and the daily question pace you need — all in one glance.</p>
+          <button class="btn btn-teal" id="setExamDate" type="button">Set exam date →</button>
         </div>
-        <button class="btn btn-teal" id="setExamDate" type="button">Set exam date →</button>
-      </div>`;
+      </section>`;
     }
     const remaining = Math.max(0, st.qTotal - st.qDone);
     if (days === null) return '';
     if (days < 0) {
-      return `<div class="countdown-strip"><div class="countdown-main"><div class="cd-boxes" aria-hidden="true"><div class="cd-box"><strong>00</strong><span>Hours</span></div><div class="cd-box"><strong>00</strong><span>Min</span></div><div class="cd-box"><strong>00</strong><span>Sec</span></div></div><div class="countdown-text"><strong>Exam was on ${esc(fmtDate(s.examDate))}</strong><span>This subject is archived — good luck!</span></div></div></div>`;
+      return `<section class="summary-strip summary-strip-archived" role="region" aria-label="Exam summary">
+        <div class="summary-cell" style="border-left: 0">
+          <span class="summary-label">Done</span>
+          <div class="summary-peer"><strong>✓</strong></div>
+          <span class="summary-sub">${esc(fmtDate(s.examDate))} has passed — archive quest complete.</span>
+        </div>
+      </section>`;
     }
     const perDay = remaining === 0 ? 0 : Math.ceil(remaining / Math.max(1, days));
     const pace = remaining === 0 ? 'All questions mastered' : (days === 0 ? 'Exam is today' : `≈${perDay} question${perDay === 1 ? '' : 's'} a day to finish`);
+    const pct = s.examTotal ? Math.min(100, Math.round(st.score / s.examTotal * 100)) : 0;
     const judge = remaining === 0 ? 'pill-green' : (perDay <= 3 ? 'pill-teal' : perDay <= 6 ? 'pill-orange' : 'pill-red');
-    const verdict = remaining === 0 ? 'Complete' : days === 0 ? 'Today' : perDay <= 3 ? 'On track' : perDay <= 6 ? 'Needs focus' : 'Grind mode';
-    return `<div class="countdown-strip ${days <= 7 ? 'danger' : ''}">
-      <div class="countdown-main">
+    const verdict = remaining === 0 ? 'Mastered' : days === 0 ? 'Today' : perDay <= 3 ? 'On track' : perDay <= 6 ? 'Needs focus' : 'Grind mode';
+    return `<section class="summary-strip${days <= 7 ? ' danger' : ''}" role="region" aria-label="Exam summary">
+      <div class="summary-cell">
+        <span class="summary-label">Exam in</span>
         <div class="cd-boxes" role="timer" aria-label="Time remaining until the exam">
           <div class="cd-box"><strong id="cdH">00</strong><span>Hours</span></div>
           <div class="cd-box"><strong id="cdM">00</strong><span>Min</span></div>
           <div class="cd-box"><strong id="cdS">00</strong><span>Sec</span></div>
         </div>
-        <div class="countdown-text"><strong>Exam on ${esc(fmtDate(s.examDate))}</strong><span>${esc(pace)}</span></div>
+        <span class="summary-sub">${esc(fmtDate(s.examDate))} · ${esc(pace)}</span>
       </div>
-      <span class="pill ${judge}">${verdict}</span>
-    </div>`;
+      <div class="summary-cell">
+        <span class="summary-label">Predicted score</span>
+        <div class="summary-peer"><strong>${st.score}</strong><span class="summary-den">/ ${s.examTotal}</span><span class="pill ${judge}">${verdict}</span></div>
+        <div class="summary-meter" role="progressbar" aria-label="Predicted score" aria-valuemin="0" aria-valuemax="${s.examTotal}" aria-valuenow="${st.score}"><div class="summary-fill" style="width:${pct}%"></div></div>
+      </div>
+      <div class="summary-cell">
+        <span class="summary-label">Questions left</span>
+        <div class="summary-peer"><strong>${remaining}</strong><span class="summary-den">/ ${st.qTotal}</span></div>
+        <span class="summary-sub">${remaining === 0 ? 'Every question mastered ✓' : 'Need to rate ' + remaining + ' more for full credit'}</span>
+      </div>
+    </section>`;
   }
 
   function renderSubject() {
@@ -1492,46 +1505,112 @@
   }
 
   /* ---------------- import wizard ---------------- */
-  const wz = { step: 1, parsed: null, fileName: '', error: '', busy: false };
+  const wz = { step: 1, parsed: null, fileName: '', error: '', busy: false, answers: null };
 
   function openWizard() {
-    wz.step = 1; wz.parsed = null; wz.fileName = ''; wz.error = ''; wz.busy = false;
+    wz.step = 1; wz.parsed = null; wz.fileName = ''; wz.error = ''; wz.busy = false; wz.answers = null;
     renderWizard();
+  }
+
+  function renderStepper(step) {
+    return `<div class="wizard-steps">
+      <div class="wstep ${step === 1 ? 'active' : (step > 1 ? 'done' : '')}"><i>1</i> Exam window</div>
+      <div class="wstep ${step === 2 ? 'active' : (step > 2 ? 'done' : '')}"><i>2</i> Copy prompt</div>
+      <div class="wstep ${step === 3 ? 'active' : (step > 3 ? 'done' : '')}"><i>3</i> Upload PDF</div>
+      <div class="wstep ${step === 4 ? 'active' : ''}"><i>4</i> Review &amp; import</div>
+    </div>`;
   }
 
   function renderWizard() {
     const step = wz.step;
-    const stepsHtml = `<div class="wizard-steps">
-      <div class="wstep ${step === 1 ? 'active' : (step > 1 ? 'done' : '')}"><i>1</i> Get the prompt</div>
-      <div class="wstep ${step === 2 ? 'active' : (step > 2 ? 'done' : '')}"><i>2</i> Upload the PDF</div>
-      <div class="wstep ${step === 3 ? 'active' : ''}"><i>3</i> Review &amp; import</div>
-    </div>`;
+    const stepsHtml = renderStepper(step);
 
     if (step === 1) {
       const full = state.subjects.length >= MAX_SUBJECTS;
-      openModal(`<h2>Add a subject from a PDF</h2>
-        <p class="muted small">Give this prompt to Gemini, ChatGPT or any agent <strong>together with your syllabus, PYQs and notes</strong>. It returns one PDF in a format this site can read. Your files never leave this browser.</p>
-        ${full ? `<div class="banner banner-warn">You already have ${MAX_SUBJECTS} subjects (the maximum). Delete one under <strong>Manage</strong> to import another. You can still copy the prompt now.</div>` : ''}
+      openModal(`<h2>First, your exam window</h2>
+        <p class="muted small">Give us the exam date/time and how many effective hours you actually have. The agent prompt will be tailored to your situation — no boilerplate.</p>
+        ${full ? `<div class="banner banner-warn">You already have ${MAX_SUBJECTS} subjects (the maximum). You can still prepare the prompt, but you'll need to delete one under <strong>Manage</strong> before importing.</div>` : ''}
         ${stepsHtml}
-        <h3>What to attach</h3>
+        <form id="preflightForm" novalidate>
+          <div class="form-grid">
+            <div class="field full"><label for="pf-date">Exam date &amp; time</label><input id="pf-date" name="examDate" type="datetime-local" autocomplete="off"></div>
+            <div class="field"><label for="pf-hours">Effective hours</label><input id="pf-hours" name="hours" type="number" min="1" max="300" step="1" inputmode="numeric" autocomplete="off"></div>
+            <div class="field"><label for="pf-target">Target marks</label><input id="pf-target" name="target" type="number" min="1" max="500" step="1" inputmode="numeric" value="30" autocomplete="off"></div>
+          </div>
+          <p class="mode-hint" id="modeHint" aria-live="polite"></p>
+          <p class="form-error" id="preflightError" role="alert" tabindex="-1"></p>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-outline" data-close>Cancel</button>
+            <button type="submit" class="btn btn-primary">Generate my prompt →</button>
+          </div>
+        </form>`, { wide: true });
+      const hoursEl = document.querySelector('#pf-hours');
+      const hintEl = document.querySelector('#modeHint');
+      const updateHint = () => {
+        const h = Number(hoursEl.value) || 0;
+        const mode = modeFor(h);
+        hintEl.innerHTML = `Mode: <strong>${esc(mode.label)}</strong> — ${esc(mode.blurb)}`;
+      };
+      hoursEl.addEventListener('input', updateHint); updateHint();
+      $('#preflightForm').addEventListener('submit', e => {
+        e.preventDefault();
+        const form = e.target;
+        const err = document.querySelector('#preflightError');
+        const showErr = m => { err.textContent = m; err.classList.add('is-show'); err.focus(); };
+        const date = form.examDate.value;
+        const hours = Math.round(Number(form.hours.value));
+        const target = Math.round(Number(form.target.value));
+        if (!date) return showErr('Pick the exact date and time of your exam (not a guess).');
+        if (!Number.isFinite(hours) || hours < 1 || hours > 300) return showErr('Enter the effective hours you can realistically study (1 – 300).');
+        if (!Number.isFinite(target) || target < 1 || target > 500) return showErr('Enter target marks between 1 and 500.');
+        wz.answers = { examDate: date, effectiveHours: hours, target };
+        wz.step = 2;
+        renderWizard();
+      });
+      return;
+    }
+
+    if (step === 2) {
+      const answers = wz.answers;
+      if (!answers) { wz.step = 1; renderWizard(); return; }
+      const full = state.subjects.length >= MAX_SUBJECTS;
+      const promptText = buildAgentPrompt(answers);
+      const dateLabel = (() => {
+        try { const d = new Date(answers.examDate + ':00'); return d.toLocaleString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' }); }
+        catch (e) { return answers.examDate; }
+      })();
+      const modeLabel = modeFor(answers.effectiveHours).label;
+      openModal(`<h2>Your tailored prompt is ready</h2>
+        <p class="muted small">Paste it into Gemini, Claude, ChatGPT or any chat agent together with your syllabus, PYQs and notes. The agent will return one PDF in Study Hub's format. Your files never leave this browser.</p>
+        <div class="preflight-strip" aria-label="Your parameters">
+          <div><span class="ps-label">Exam</span><strong>${esc(dateLabel)}</strong></div>
+          <div><span class="ps-label">Hours</span><strong>${esc(answers.effectiveHours)}</strong></div>
+          <div><span class="ps-label">Target</span><strong>${esc(answers.target)}</strong></div>
+          <div><span class="ps-label">Mode</span><strong>${esc(modeLabel)}</strong></div>
+        </div>
+        ${full ? `<div class="banner banner-warn">You already have ${MAX_SUBJECTS} subjects (the maximum). Delete one under <strong>Manage</strong> to import the PDF once it's generated.</div>` : ''}
+        ${stepsHtml}
+        <h3>What to attach with the prompt</h3>
         <ul class="attach-list">${ATTACHMENTS.map(a => `<li>${esc(a)}</li>`).join('')}</ul>
-        <h3>The prompt</h3>
-        <pre class="prompt-box" id="promptBox">${esc(AGENT_PROMPT)}</pre>
+        <h3>Your prompt</h3>
+        <pre class="prompt-box" id="promptBox">${esc(promptText)}</pre>
         <div class="copy-row">
           <button class="btn btn-primary" id="copyPrompt" type="button">Copy prompt</button>
-          <button class="btn btn-outline" id="downloadPrompt" type="button">Download prompt (.txt)</button>
+          <button class="btn btn-outline" id="downloadPrompt" type="button">Download (.txt)</button>
+          <button class="btn btn-outline" id="editPreflight" type="button">Edit parameters</button>
         </div>
         <div class="modal-actions">
           <button class="btn btn-outline" type="button" data-close>Cancel</button>
           <button class="btn btn-primary" id="toUpload" type="button" ${full ? 'disabled' : ''}>Next: upload PDF →</button>
         </div>`, { wide: true });
-      $('#copyPrompt').addEventListener('click', () => copyText(AGENT_PROMPT).then(() => toast('Prompt copied')));
-      $('#downloadPrompt').addEventListener('click', () => download('study-hub-agent-prompt.txt', AGENT_PROMPT + '\n\nATTACH THESE:\n' + ATTACHMENTS.map(a => '- ' + a).join('\n')));
-      $('#toUpload').addEventListener('click', () => { wz.step = 2; renderWizard(); });
+      $('#copyPrompt').addEventListener('click', () => copyText(promptText).then(() => toast('Prompt copied to clipboard')));
+      $('#downloadPrompt').addEventListener('click', () => download('study-hub-agent-prompt.txt', promptText + '\n\nATTACH THESE:\n' + ATTACHMENTS.map(a => '- ' + a).join('\n')));
+      $('#editPreflight').addEventListener('click', () => { wz.step = 1; renderWizard(); });
+      $('#toUpload').addEventListener('click', () => { wz.step = 3; renderWizard(); });
       return;
     }
 
-    if (step === 2) {
+    if (step === 3) {
       openModal(`<h2>Upload your study PDF</h2>
         <p class="muted small">Drop the PDF your agent produced. You can also upload a <code>.json</code>, <code>.md</code> or <code>.txt</code> file.</p>
         ${stepsHtml}
@@ -1543,7 +1622,7 @@
         ${wz.busy ? '<div class="banner banner-info">Reading and parsing the file…</div>' : ''}
         ${wz.error ? `<div class="banner banner-error">${esc(wz.error)}</div>` : ''}
         <div class="modal-actions">
-          <button class="btn btn-outline" id="wzBack" type="button">← Back</button>
+          <button class="btn btn-outline" id="wzBack" type="button">← Back to prompt</button>
         </div>`, { wide: true });
       const dz = $('#dropzone');
       const openPicker = () => $('#pdfInput').click();
@@ -1557,12 +1636,13 @@
         const f = e.dataTransfer.files && e.dataTransfer.files[0];
         if (f) handleImportFile(f);
       });
-      $('#wzBack').addEventListener('click', () => { wz.step = 1; renderWizard(); });
+      $('#wzBack').addEventListener('click', () => { wz.step = 2; renderWizard(); });
       return;
     }
 
-    // step 3 preview
+    // step 4 preview
     const p = wz.parsed;
+    if (!p) { wz.step = 3; renderWizard(); return; }
     const qCount = p.topics.reduce((n, t) => n + t.questions.length, 0);
     const cCount = p.topics.reduce((n, t) => n + t.concepts.length, 0);
     const full = state.subjects.length >= MAX_SUBJECTS;
@@ -1584,7 +1664,7 @@
         <button class="btn btn-outline" id="wzBack2" type="button">← Upload another</button>
         <button class="btn btn-primary" id="doImport" type="button" ${(!p.topics.length || full) ? 'disabled' : ''}>Import subject</button>
       </div>`, { wide: true, focus: false });
-    $('#wzBack2').addEventListener('click', () => { wz.step = 2; wz.error = ''; renderWizard(); });
+    $('#wzBack2').addEventListener('click', () => { wz.step = 3; wz.error = ''; renderWizard(); });
     const di = $('#doImport');
     if (di) di.addEventListener('click', doImport);
   }
@@ -1609,7 +1689,7 @@
         parsed = parseAnyText(text, name);
       }
       if (!parsed.name || parsed.name === 'Untitled subject') parsed.name = name;
-      wz.parsed = parsed; wz.busy = false; wz.step = 3;
+      wz.parsed = parsed; wz.busy = false; wz.step = 4;
       renderWizard();
     } catch (e) {
       console.error(e);

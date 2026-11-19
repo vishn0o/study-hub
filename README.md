@@ -13,13 +13,13 @@ PDF parsing runs locally.
 ## Quick start
 
 1. **Open `index.html`** (double-click it).
-2. In Study Hub click **Agent prompt** and copy the prompt. **Paste it into any trusted LLM (Gemini, Claude, ChatGPT) and attach your syllabus + PYQs + notes** — wait for the PDF.
-3. Drop the returned PDF into Study Hub via **+ Add subject → Next: upload PDF**.
-4. Review the parsed counts and click **Import subject**.
+2. In Study Hub click **Agent prompt**. The app asks for your **exam date & time**, **effective study hours** and **target marks**, and generates a tailored prompt. The app automatically picks a timing mode (CRASH / STANDARD / DEEP) based on your hours.
+3. Copy the prompt (or download it as `.txt`) and paste it into any trusted LLM — Gemini, Claude, ChatGPT, etc. Attach your syllabus + PYQs + notes.
+4. The LLM returns one PDF in Study Hub's import format.
+5. Drop the PDF into Study Hub via **+ Add subject → Next: upload PDF**, review the parsed counts, click **Import subject**.
+6. Track progress, spaced-repetition reviews, formulas, exam countdown — everything is local; nothing ever leaves your machine.
 
-(If you prefer the command-line approach, the same prompt is checked in as
-`generate-study-plan-prompt.txt` — a structured "guaranteed pass" version you can edit,
-fork, and reuse. The in-app **Agent prompt** button is the fastest path.)
+(A ready-to-fork, system-style prompt lives in `generate-study-plan-prompt.txt` — same structure, meant for versioned customisation. The in-app **Agent prompt** is the fastest path.)
 
 You can keep up to **3 subjects**. Each has its own progress and review history.
 
