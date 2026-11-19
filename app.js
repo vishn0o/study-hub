@@ -866,17 +866,45 @@
       ${xLabels}`;
   }
 
+  /* ---------------- dialog focus management ---------------- */
+  const dialogFocusStack = [];
+  const FOCUSABLE = 'a[href], area[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"]), [contenteditable="true"]';
+  function rememberFocus() {
+    const el = document.activeElement;
+    dialogFocusStack.push(el && el !== document.body ? el : null);
+  }
+  function restoreFocus() {
+    const el = dialogFocusStack.pop();
+    if (el && document.contains(el) && !el.closest('[hidden]')) {
+      try { el.focus(); } catch (e) {}
+    }
+  }
+  function focusableIn(root) {
+    return Array.from(root.querySelectorAll(FOCUSABLE)).filter(el => {
+      if (el.closest('[hidden]') || el.getAttribute('aria-hidden') === 'true') return false;
+      const cs = getComputedStyle(el);
+      return cs.display !== 'none' && cs.visibility !== 'hidden' && el.getClientRects().length > 0;
+    });
+  }
+  function activeDialog() {
+    if (!$('#modalOverlay').hidden && !$('#modal').hidden) return $('#modal');
+    if (!$('#drawerOverlay').hidden && !$('#drawer').hidden) return $('#drawer');
+    return null;
+  }
+
   /* ---------------- drawer ---------------- */
   function openDrawer(tid, focusQ) {
     const s = active(); if (!s) return;
     const t = s.topics.find(x => x.id === tid); if (!t) return;
     drawerTopicId = tid;
     currentFocusQ = focusQ || null;
+    rememberFocus();
     $('#drawerOverlay').hidden = false;
     $('#drawer').hidden = false;
+    if (!$('#drawer').hasAttribute('tabindex')) $('#drawer').setAttribute('tabindex', '-1');
     document.body.style.overflow = 'hidden';
     renderDrawer();
-    $('#drawerClose').focus();
+    ($('#drawerClose') || focusableIn($('#drawer'))[0] || $('#drawer')).focus();
   }
   function closeDrawer() {
     $('#drawerOverlay').hidden = true;
@@ -884,6 +912,7 @@
     document.body.style.overflow = '';
     drawerTopicId = null;
     currentFocusQ = null;
+    restoreFocus();
   }
 
   function renderBlocks(blocks) {
@@ -1068,20 +1097,25 @@
   /* ---------------- modal helpers ---------------- */
   function openModal(html, opts) {
     opts = opts || {};
+    if ($('#modalOverlay').hidden) rememberFocus();
     $('#modalContent').innerHTML = html;
     $('#modal').classList.toggle('wide', !!opts.wide);
     $('#modalOverlay').hidden = false;
+    $('#modal').hidden = false;
+    if (!$('#modal').hasAttribute('tabindex')) $('#modal').setAttribute('tabindex', '-1');
     // Point aria-labelledby at the heading we just rendered so screen readers can read it
     const modal = $('#modal');
     const heading = modal.querySelector('h2, h3');
     if (heading && !heading.id) heading.id = 'modalTitle';
-    const first = $('#modalContent input, #modalContent textarea, #modalContent select');
-    if (first && opts.focus !== false) setTimeout(() => first.focus(), 30);
+    const first = opts.focus === false ? null : $('#modalContent input, #modalContent textarea, #modalContent select');
+    (first || $('#modalClose') || focusableIn(modal)[0] || modal).focus();
   }
   function closeModal() {
     $('#modalOverlay').hidden = true;
+    $('#modal').hidden = true;
     $('#modalContent').innerHTML = '';
     $('#modal').classList.remove('wide');
+    restoreFocus();
   }
 
   /* ---------------- refresh ---------------- */
@@ -2349,10 +2383,22 @@
   document.addEventListener('keydown', e => {
     if ((e.key === 'Enter' || e.key === ' ') && e.target.classList && e.target.classList.contains('topic-card')) {
       e.preventDefault(); openDrawer(e.target.dataset.topic);
+      return;
+    }
+    if (e.key === 'Tab') {
+      const dialog = activeDialog();
+      if (!dialog) return;
+      const items = focusableIn(dialog);
+      if (!items.length) { e.preventDefault(); dialog.focus(); return; }
+      const first = items[0], last = items[items.length - 1], cur = document.activeElement;
+      if (e.shiftKey && (cur === first || !dialog.contains(cur))) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && (cur === last || !dialog.contains(cur))) { e.preventDefault(); first.focus(); }
+      return;
     }
     if (e.key === 'Escape') {
-      if (!$('#modalOverlay').hidden) closeModal();
-      else if (!$('#drawer').hidden) closeDrawer();
+      const dialog = activeDialog();
+      if (dialog === $('#modal')) closeModal();
+      else if (dialog === $('#drawer')) closeDrawer();
     }
   });
 
