@@ -559,7 +559,8 @@
       v.innerHTML = `<section class="welcome">
         <img class="mark" src="icon.svg" alt="Study Hub" aria-hidden="true" width="72" height="72">
         <h2>Track any subject, one file at a time</h2>
-        <p>Copy the built-in prompt ("Agent prompt"), open Gemini / Claude / ChatGPT, paste it, attach your syllabus + PYQs + notes, and save whatever it prints out as a <code>.txt</code> file. Drop that file here and your notes, questions, answers and progress tracker are ready. Files never leave this browser.</p>
+        <p><strong>This is a study progress tracker, not a place to study from.</strong> Learn from your own notes, slides and PYQs — Study Hub turns them into topics and questions, then tracks how confident you are and predicts your score.</p>
+        <p>Copy the built-in prompt ("Agent prompt"), open Gemini / Claude / ChatGPT, paste it, attach your syllabus + PYQs + notes, and save whatever it prints out as a <code>.txt</code> file. Drop that file here and your tracker is ready. Files never leave this browser.</p>
         <div class="welcome-actions">
           <button class="btn btn-primary" id="welcomeAdd" type="button">Get the agent prompt →</button>
           <button class="btn btn-outline" id="welcomeSample" type="button">Load the quick tour sample</button>
@@ -1693,14 +1694,19 @@
     // Study-plan reference tables. Most guides print a mark blueprint, an ROI
     // ranking and a hour-by-hour schedule even when they omit the @@PLAN markers.
     const isStop = (l) => isSectionLine(l) || /^(?:FINAL\s+LESSON|PRIORITY\s+TOPIC|RANK\s+TOPIC|UNIT\s+UNIT|HOURS\s+BLOCK|THE\s+\d+\s*-?\s*HOUR\s+PLAN|\*|COUNTDOWN EXECUTION PLAN)/i.test(l.trim());
-    const tableAfter = (headerRe) => {
+    const leadNum = (s) => { const m = s.match(/^(\d+)/); return m ? +m[1] : null; };
+    const tableAfter = (headerRe, sequential) => {
       const hi = lines.findIndex(l => headerRe.test(l.trim()));
       if (hi < 0) return null;
       const rows = [lines[hi].trim()];
       for (let i = hi + 1; i < lines.length && rows.length < 15; i++) {
         const t = lines[i].trim();
         if (!t || isStop(t)) break;
-        if (/^(?:\d+[\s\-.)]|[IVXLCDM]+\s|Topic\s*\d)/i.test(t)) rows.push(t);
+        const n = leadNum(t), prev = leadNum(rows[rows.length - 1]);
+        const newRow = sequential
+          ? (n !== null && (prev === null || n === prev + 1))
+          : /^(?:\d+[\s\-.)]|[IVXLCDM]+\s|Topic\s*\d)/i.test(t);
+        if (newRow) rows.push(t);
         else if (rows.length > 1) rows[rows.length - 1] += ' ' + t;
       }
       return rows.length > 2 ? rows : null;
@@ -1730,10 +1736,58 @@
       }
       return rows.length ? rows : null;
     };
+    // PDF rows arrive as single lines; rebuild the columns for the rendered table.
+    const shapeTable = (rows) => {
+      if (!rows) return null;
+      const head = rows[0];
+      let headers, parse;
+      if (/^Unit\s+Unit topic\b/i.test(head)) {
+        headers = ['Unit', 'Topic', 'Weight'];
+        parse = (s) => { const m = s.match(/^([IVXLCDM]+)\s+(.+?)\s+(\d+(?:\.\d+)?)\s*marks?$/i); return m ? [m[1], m[2], m[3]] : null; };
+      } else if (/^Priority\s+Topic\b/i.test(head)) {
+        headers = ['Priority', 'Topic', 'Unit', "ICE '25", "ICE '24", "ECE '25", 'Avg.', 'Hours'];
+        parse = (s) => {
+          const m = s.match(/^Topic\s*(\d+)\s+(.+?)\s+(Unit\s+[IVXLCDM]+)\s+((?:\d+(?:\.\d+)?\s*M\*?\s*)+)([\d.]+\s*hrs)$/i);
+          if (!m) return null;
+          const marks = m[4].match(/\d+(?:\.\d+)?\s*M\*?/gi) || [];
+          return ['Topic ' + m[1], m[2], m[3], ...marks.map(x => x.replace(/\s*M\*?$/i, '')), m[5]];
+        };
+      } else if (/^Rank\s+Topic\s+Marks\b/i.test(head)) {
+        headers = ['Rank', 'Topic', 'Marks', 'Why it matters'];
+        parse = (s) => { const m = s.match(/^(\d+)\s+(.+?)\s+(\d+(?:\.\d+)?)\s+(.+)$/); return m ? [m[1], m[2], m[3], m[4]] : null; };
+      } else if (/^Rank\s+Topic\s+Title\b/i.test(head)) {
+        headers = ['Rank', 'Topic', 'Unit', 'Avg.', 'Cumul.', 'Exam priority & strategic verdict'];
+        parse = (s) => {
+          const m = s.match(/^(\d+)\s+(.+?)\s+(Unit\s+[IVXLCDM]+)\s+((?:\d+(?:\.\d+)?\s*M\s*)+)(.+)$/i);
+          if (!m) return null;
+          const nums = m[4].match(/\d+(?:\.\d+)?/g) || [];
+          return [m[1], m[2], m[3], nums[0] || '', nums[1] || '', m[5]];
+        };
+      } else if (/^Hours\s+Block\b/i.test(head)) {
+        headers = ['Hours', 'Block / Activity', 'Marks target'];
+        parse = (s) => { const m = s.match(/^(\(?[^\s(]+\)?|[\d\-–]+)\s+(.+?)\s+(\S+)$/); return m ? [m[1], m[2], m[3]] : null; };
+      } else return rows;
+      const out = [headers];
+      rows.slice(1).forEach(r => {
+        const cells = parse(r) || [r];
+        while (cells.length < headers.length) cells.push('');
+        out.push(cells.slice(0, headers.length));
+      });
+      return out;
+    };
+    const scheduleRows = tableAfter(/^Hours\s+Block\b/i);
+    const countdown = () => {
+      const b = bulletsAfter(/Countdown Execution Plan/i);
+      if (!b) return null;
+      return [['Hours', 'Block / Activity'], ...b.map(s => {
+        const i = s.indexOf(':');
+        return i > 0 ? [s.slice(0, i), s.slice(i + 1).trim()] : [s, ''];
+      })];
+    };
     const plan = {
-      blueprint: tableAfter(/^(?:Unit\s+Unit topic|Priority\s+Topic)\b/i),
-      ranking: tableAfter(/^Rank\s+Topic\b/i),
-      schedule: tableAfter(/^Hours\s+Block\b/i) || bulletsAfter(/Countdown Execution Plan/i),
+      blueprint: shapeTable(tableAfter(/^(?:Unit\s+Unit topic|Priority\s+Topic)\b/i)),
+      ranking: shapeTable(tableAfter(/^Rank\s+Topic\b/i, true)),
+      schedule: scheduleRows ? shapeTable(scheduleRows) : countdown(),
       checklist: linesAfter(/^(?:FINAL\s+)?CHECKLIST\b|HOW TO STUDY EACH UNIT|HOW TO SCORE PARTIAL MARKS/i)
                 || bulletsAfter(/Countdown Execution Plan/i),
     };
@@ -2116,6 +2170,7 @@
   /* ---------------- help & backup ---------------- */
   function openHelp() {
     openModal(`<h2>How Study Hub works</h2>
+      <p class="muted small">Study Hub is a <strong>study progress tracker, not a place to study from</strong>. Do your learning from your notes, slides and previous-year papers; use this app to track topics, rate questions and watch your predicted score.</p>
       <ul>
         <li><strong>Bring your own plan.</strong> Click “Agent prompt” → fill in your exam date/time, effective hours and target marks → paste the tailored prompt into any LLM (Gemini, Claude, ChatGPT, Llama) → attach your syllabus + PYQs + notes to the same message → save whatever it prints out as <code>.txt</code> → this app parses it offline.</li>
         <li><strong>Everything is local.</strong> File parsing and storage happen in this browser. No server, no uploads.</li>
