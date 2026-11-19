@@ -557,7 +557,7 @@
     const s = active();
     if (!s) {
       v.innerHTML = `<section class="welcome">
-        <div class="mark">SH</div>
+        <img class="mark" src="icon.svg" alt="Study Hub" aria-hidden="true" width="72" height="72">
         <h2>Track any subject, one file at a time</h2>
         <p>Copy the built-in prompt ("Agent prompt"), open Gemini / Claude / ChatGPT, paste it, attach your syllabus + PYQs + notes, and save whatever it prints out as a <code>.txt</code> file. Drop that file here and your notes, questions, answers and progress tracker are ready. Files never leave this browser.</p>
         <div class="welcome-actions">
