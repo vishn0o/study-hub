@@ -1689,6 +1689,55 @@
     }
 
     if (!topics.length) return null;
+
+    // Study-plan reference tables. Most guides print a mark blueprint, an ROI
+    // ranking and a hour-by-hour schedule even when they omit the @@PLAN markers.
+    const isStop = (l) => isSectionLine(l) || /^(?:FINAL\s+LESSON|PRIORITY\s+TOPIC|RANK\s+TOPIC|UNIT\s+UNIT|HOURS\s+BLOCK|THE\s+\d+\s*-?\s*HOUR\s+PLAN|\*|COUNTDOWN EXECUTION PLAN)/i.test(l.trim());
+    const tableAfter = (headerRe) => {
+      const hi = lines.findIndex(l => headerRe.test(l.trim()));
+      if (hi < 0) return null;
+      const rows = [lines[hi].trim()];
+      for (let i = hi + 1; i < lines.length && rows.length < 15; i++) {
+        const t = lines[i].trim();
+        if (!t || isStop(t)) break;
+        if (/^(?:\d+[\s\-.)]|[IVXLCDM]+\s|Topic\s*\d)/i.test(t)) rows.push(t);
+        else if (rows.length > 1) rows[rows.length - 1] += ' ' + t;
+      }
+      return rows.length > 2 ? rows : null;
+    };
+    const bulletsAfter = (headerRe) => {
+      const hi = lines.findIndex(l => headerRe.test(l.trim()));
+      if (hi < 0) return null;
+      const rows = [];
+      for (let i = hi + 1; i < lines.length && rows.length < 12; i++) {
+        const t = lines[i].trim();
+        if (!t || isStop(t)) break;
+        if (/^(?:[•\-*]|\d+[.)])\s+/.test(t)) rows.push(t.replace(/^[•\-*]\s+/, ''));
+        else if (rows.length && !/^(?:Topic\s*\d+\s*:|Practice\s*Q|Step-by-Step|FINAL\s+LESSON|PRIORITY\s+TOPIC|RANK\s+TOPIC|\d+(?:\.\d+)?\s+[A-Z])/i.test(t)) {
+          rows[rows.length - 1] += ' ' + t;
+        } else break;
+      }
+      return rows.length ? rows : null;
+    };
+    const linesAfter = (headerRe) => {
+      const hi = lines.findIndex(l => headerRe.test(l.trim()));
+      if (hi < 0) return null;
+      const rows = [];
+      for (let i = hi + 1; i < lines.length && rows.length < 12; i++) {
+        const t = lines[i].trim();
+        if (!t || isStop(t)) break;
+        rows.push(t);
+      }
+      return rows.length ? rows : null;
+    };
+    const plan = {
+      blueprint: tableAfter(/^(?:Unit\s+Unit topic|Priority\s+Topic)\b/i),
+      ranking: tableAfter(/^Rank\s+Topic\b/i),
+      schedule: tableAfter(/^Hours\s+Block\b/i) || bulletsAfter(/Countdown Execution Plan/i),
+      checklist: linesAfter(/^(?:FINAL\s+)?CHECKLIST\b|HOW TO STUDY EACH UNIT|HOW TO SCORE PARTIAL MARKS/i)
+                || bulletsAfter(/Countdown Execution Plan/i),
+    };
+
     return normalizeSubject({
       name: meta.name || fallbackName || 'Imported subject',
       code: meta.code || '',
@@ -1696,7 +1745,7 @@
       target: meta.target || Math.round((meta.examTotal || 100) * 0.6),
       examDate: meta.examDate || '',
       topics,
-      plan: { blueprint: null, ranking: null, schedule: null, checklist: null },
+      plan,
     });
   }
 
