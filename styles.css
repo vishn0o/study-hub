@@ -548,7 +548,8 @@ html[data-theme="dark"] .self-test-banner button { background: rgba(255,255,255,
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
 /* PWA install chip */
-.install-chip { position: fixed; right: 18px; bottom: 18px; z-index: 150; display: flex; align-items: center; gap: 10px; background: var(--navy); color: #fff; padding: 10px 12px 10px 10px; border-radius: 999px; box-shadow: 0 10px 28px rgba(0,0,0,.35); border: 1px solid rgba(255,255,255,.18); font-size: 12px; font-weight: 700; }
+/* Above page content/footer, below drawer and modal overlays. */
+.install-chip { position: fixed; right: 18px; bottom: 18px; z-index: 80; display: flex; align-items: center; gap: 10px; background: var(--navy); color: #fff; padding: 10px 12px 10px 10px; border-radius: 999px; box-shadow: 0 10px 28px rgba(0,0,0,.35); border: 1px solid rgba(255,255,255,.18); font-size: 12px; font-weight: 700; }
 .install-chip span { padding: 0 4px; }
 .install-chip button { border: 0; background: var(--teal); color: #0b1521; font-weight: 800; font-size: 12px; padding: 8px 12px; border-radius: 999px; }
 .install-chip button:hover { background: var(--teal-strong); }
@@ -603,6 +604,8 @@ html[data-theme="dark"] .self-test-banner button { background: rgba(255,255,255,
   .container { padding: 22px 16px 48px; }
   .brand-text p { display: none; }
   .btn-ghost { padding: 8px 10px; font-size: 11px; }
+  .topbar-actions .btn-ghost { min-height: 40px; }
+  .subject-switch .btn, .subject-switch select { min-height: 40px; }
   .dash-grid { grid-template-columns: 1fr; }
   .plan-grid { grid-template-columns: 1fr; }
   .form-grid { grid-template-columns: 1fr; }
