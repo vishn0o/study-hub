@@ -1063,6 +1063,10 @@
     $('#modalContent').innerHTML = html;
     $('#modal').classList.toggle('wide', !!opts.wide);
     $('#modalOverlay').hidden = false;
+    // Point aria-labelledby at the heading we just rendered so screen readers can read it
+    const modal = $('#modal');
+    const heading = modal.querySelector('h2, h3');
+    if (heading && !heading.id) heading.id = 'modalTitle';
     const first = $('#modalContent input, #modalContent textarea, #modalContent select');
     if (first && opts.focus !== false) setTimeout(() => first.focus(), 30);
   }
