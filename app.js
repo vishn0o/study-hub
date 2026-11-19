@@ -1285,10 +1285,13 @@
         if (obj && (Array.isArray(obj.topics) || obj.subject)) return normalizeSubject(obj);
       } catch (e) { /* fall through */ }
     }
+    // ordinary, human-readable study guides (agents often ignore the marker format)
+    const doc = parseDocument(text, fallbackName);
+    if (doc && doc.topics.length) return doc;
     // simple heading fallback
     const h = parseHeuristic(text, fallbackName);
     if (h.topics.length) return h;
-    throw new Error('No structured data found in that file. Upload the plan your agent produced with the Study Hub prompt (.txt, .md, .json or .pdf).');
+    throw new Error('No topics, questions or headings could be found in that file. Upload a study guide, or the plan your agent produced with the Study Hub prompt (.txt, .md, .json or .pdf).');
   }
 
   function parseMarkers(text) {
@@ -1414,6 +1417,228 @@
     const out = normalizeSubject(subj);
     out.examDate = normExamDate(subj.examDate);
     return out;
+  }
+
+  /* ---------------- generic document importer ----------------
+     Agents often ignore the marker format and return an ordinary,
+     human-readable study guide PDF instead. This reads the structure
+     such documents really have: unit/part headings, "at a glance"
+     boxes, key-fact lists, formula sets and solved questions. */
+  function parseDocument(raw, fallbackName) {
+    const text = normalizeText(raw);
+    const rawLines = text.split('\n').map(l => l.replace(/\s+$/, ''));
+
+    // Running headers/footers ("... Study Guide 12") repeat on every page; drop them.
+    const keyOf = (l) => l.trim().replace(/[\s|\-–]+(?:\d{1,4})\s*$/, '').toLowerCase();
+    const hasPageNo = (l) => /[\s|\-–]\d{1,4}\s*$/.test(l.trim());
+    const freq = new Map();
+    for (const l of rawLines) {
+      if (!hasPageNo(l)) continue;
+      const k = keyOf(l);
+      if (k) freq.set(k, (freq.get(k) || 0) + 1);
+    }
+    const lines = rawLines.filter(l => {
+      const k = keyOf(l);
+      // Only long, repeated lines that end in a page number are running
+      // headers/footers. Recurring section titles ("Key facts...") stay.
+      return !hasPageNo(l) || !k || k.length < 20 || (freq.get(k) || 0) < 3;
+    });
+    const joined = lines.join('\n');
+    const grab = (re) => { const m = joined.match(re); return m ? m[1].trim() : ''; };
+
+    const appendText = (obj, key, line) => {
+      const t = String(line).trim().replace(/^[-*•]\s*/, '');
+      if (t) obj[key] = (obj[key] ? obj[key] + ' ' : '') + t;
+    };
+    const appendParagraph = (arr, line) => {
+      const t = String(line).trim().replace(/^[-*•]\s*/, '');
+      if (!t) return;
+      const prev = arr[arr.length - 1];
+      if (prev && !/[.!?:;)\]}"']$/.test(prev) && !/^[-*•]\s/.test(String(line))) {
+        arr[arr.length - 1] = prev + ' ' + t;
+      } else arr.push(t);
+    };
+    const isSectionLine = (l) => /^(?:AT\s+A\s+GLANCE|KEY\s+FACTS?|KEY\s+CONCEPTS?|FORMULA\s*SET|FORMULAS?|CIRCUIT\s+PICTURES?|SOLVED\s+QUESTIONS?|DIAGRAM|WORKED\s+STEPS?|MODEL\s+ANSWER|ANSWERS?|HOW\s+TO|EXAM\s+SNAPSHOT|BOOK\s+MAP|HIGH-YIELD|THE\s+\d+\s*-\s*HOUR\s+PLAN|CONVENTIONS)\b/i.test(l.trim());
+    const guessTitle = () => {
+      const first = lines.slice(0, 8).find(l => l.trim());
+      if (first && /^#\s+\S/.test(first.trim())) {
+        return first.trim().replace(/^#\s+/, '').replace(/\s*#+\s*$/, '').trim();
+      }
+      let title = '';
+      for (const rawLine of lines.slice(0, 8)) {
+        const t = rawLine.trim().replace(/^#{1,6}\s+/, '');
+        if (!t) continue;
+        if (/^(?:chapter|unit|topic|part|section|module)\s+(?:\d+|[ivxlcdm]+)\b/i.test(t)) { title = ''; break; }
+        if (!title) {
+          if (t.length > 90 || /:/.test(t)) { title = t.replace(/\s*[:\-].*$/, ''); break; }
+          title = t;
+        } else {
+          if (t.length > 90 || /:/.test(t) || /\b(guide|handbook|notes|slides|syllabus|paper|plan)\b/i.test(t)) break;
+          title += ' ' + t;
+        }
+      }
+      return title.trim();
+    };
+
+    // ----- subject metadata -----
+    const meta = { name: '', code: '', examTotal: 0, target: 0, examDate: '' };
+    meta.examDate = grab(/(?:^|\n|\|\s*)Exam\s*[:\-]\s*([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:]+)/i)
+                 || grab(/Exam\s*date\s*\/\s*time\s+([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:]+)/i);
+    meta.examDate = normExamDate(meta.examDate);
+    const totalStr = grab(/(?:^|\n|\|\s*)Total\s*[:\-]\s*(\d+)\s*marks?/i) || grab(/Total\s*marks\s+(\d+)/i);
+    meta.examTotal = totalStr ? num(totalStr, 0) : 0;
+    const targetStr = grab(/(?:^|\n|\|\s*)Target\s*[:\-]\s*([0-9]+)/i) || grab(/Your\s*target\s+(\d+)/i);
+    meta.target = targetStr ? num(targetStr, 0) : 0;
+    meta.name = grab(/(?:^|\n)Subject\s+([^\n|]+)/i);
+    meta.code = grab(/(?:^|\n)Course\s*code\s+([^\n|]+)/i);
+    if (!meta.code) {
+      const metaLine = lines.find(l => /(?:^|\|)\s*Exam\s*:/i.test(l));
+      if (metaLine) {
+        const part = metaLine.split('|').map(s => s.trim()).find(s => /^[A-Za-z]{2,}\s*\d/.test(s));
+        if (part) meta.code = part;
+      }
+    }
+    if (!meta.name) meta.name = guessTitle();
+
+    // ----- locate unit headings (PART/UNIT/CHAPTER or markdown) -----
+    const partRe = /^PART\s+(?:\d+|[IVXLCDM]+)\s*[:.\-]?\s*(.*)$/i;
+    const unitRe = /^(?:UNIT|CHAPTER|MODULE|SECTION|TOPIC)\s+(?:\d+|[IVXLCDM]+)\s*[:.\-]?\s*(.*)$/i;
+    const mdRe = /^#{1,4}\s+(.+)$/;
+    const partIdx = [], unitIdx = [], mdIdx = [];
+    lines.forEach((l, i) => {
+      const t = l.trim();
+      if (partRe.test(t)) partIdx.push(i);
+      else if (unitRe.test(t)) unitIdx.push(i);
+      else if (mdRe.test(t)) mdIdx.push(i);
+    });
+    const heads = partIdx.length ? partIdx : (unitIdx.length ? unitIdx : mdIdx);
+    if (!heads.length) return null;
+    const headingRe = (l) => partRe.test(l.trim()) || unitRe.test(l.trim()) || mdRe.test(l.trim());
+    // A real question header has marks, punctuation or a decent amount of
+    // text after the number — a bare "Q1" in a circuit diagram is not one.
+    const isQ = (l) => {
+      const m = l.trim().match(/^Q(?:uestion)?\s*\.?\s*\d+\b(.*)$/i);
+      if (!m) return false;
+      const rest = m[1].trim();
+      if (/[\[(]\s*\d+\s*marks?\s*[\])]/i.test(rest)) return true;
+      if (/^[A-Za-z"'\d]/.test(rest) && rest.length >= 12) return true;
+      return /^[:.\-]\s*[A-Za-z]/.test(rest);
+    };
+
+    const topics = [];
+    for (let h = 0; h < heads.length; h++) {
+      const start = heads[h];
+      const end = h + 1 < heads.length ? heads[h + 1] : lines.length;
+      const inline = lines[start].trim().match(partRe) || lines[start].trim().match(unitRe) || lines[start].trim().match(mdRe);
+      let title = inline && inline[1] ? inline[1].trim() : '';
+      let cursor = start + 1;
+      if (!title) {
+        while (cursor < end && !lines[cursor].trim()) cursor++;
+        if (cursor < end && !isSectionLine(lines[cursor])) {
+          title = lines[cursor].trim();
+          cursor++;
+        }
+      }
+      if (!title) continue;
+
+      const topic = {
+        title, marks: 1, marksLabel: '', everyPaper: false,
+        rank: h + 1, concepts: [], formulas: [], questions: []
+      };
+      let mode = null, question = null, inSolved = false;
+      const flushQ = () => {
+        if (question) {
+          if (!question.question.trim()) question.question = 'Question ' + (topic.questions.length + 1);
+          topic.questions.push(question);
+          question = null;
+        }
+      };
+
+      for (let i = cursor; i < end; i++) {
+        const t = lines[i].trim();
+        if (!t) continue;
+
+        // Diagram/figure blocks are full of bare labels ("Q1", "VDD") that
+        // look like questions or formulas — ignore them until real content.
+        if (mode === 'ignore') {
+          if (isQ(t) || headingRe(t) || /^(?:MODEL\s+ANSWER|WORKED\s+STEPS?|AT\s+A\s+GLANCE|KEY\s+FACTS?|FORMULA\s*SET|SOLVED\s+QUESTIONS?)\b/i.test(t)) mode = null;
+          else continue;
+        }
+
+        if (isQ(t)) {
+          flushQ();
+          const rest = t.replace(/^Q(?:uestion)?\s*\.?\s*\d+\s*/i, '');
+          const mm = rest.match(/[\[(]\s*(\d+)\s*marks?\s*[\])]/i) || rest.match(/\b(\d+)\s*marks?\b/i);
+          let qtext = mm ? rest.replace(mm[0], ' ') : rest;
+          let source = '';
+          const sm = qtext.match(/\b(?:[A-Z]{2,}\s*\d{4}\s*Q[\w\/\s-]*|(?:19|20)\d{2}\s*Q[\w\/\s-]*|SYNTHESIZED)\b/i);
+          if (sm) { source = sm[0].trim(); qtext = qtext.replace(sm[0], ' '); }
+          qtext = qtext.replace(/\s+/g, ' ').trim();
+          question = { question: qtext, marks: mm ? num(mm[1], 1) : 1, source, answer: [], steps: [], code: '' };
+          mode = 'question';
+          continue;
+        }
+        if (/^(MODEL\s+ANSWER|ANSWERS?|SOLUTION)\b[:.]?\s*$/i.test(t)) { if (question) mode = 'answer'; continue; }
+        if (/^(WORKED\s+STEPS?|WORKED\s+SOLUTION|WORKING)\b[:.]?\s*$/i.test(t)) { if (question) mode = 'steps'; continue; }
+        if (/^AT\s+A\s+GLANCE\b/i.test(t)) { mode = 'glance'; continue; }
+        if (/^KEY\s+FACTS?\b|^KEY\s+CONCEPTS?\b/i.test(t)) { mode = 'concept'; continue; }
+        if (/^(FORMULA\s*SET|FORMULAS?|FORMULAE)\b/i.test(t)) { mode = 'formula'; continue; }
+        if (/^SOLVED\s+QUESTIONS?\b/i.test(t)) { inSolved = true; mode = null; continue; }
+        if (/^(?:CIRCUIT\s+PICTURES?|FIGURES?|DIAGRAMS?|TABLES?|DIAGRAM\s*\/\s*TRACE)\b/i.test(t)) { mode = 'ignore'; continue; }
+        if (headingRe(t)) break;
+
+        if (inSolved && mode !== 'steps' && /^\d+[.)]\s+\S/.test(t)) {
+          flushQ();
+          const rest = t.replace(/^\d+[.)]\s+/, '');
+          const mm = rest.match(/[\[(]\s*(\d+)\s*marks?\s*[\])]/i) || rest.match(/\b(\d+)\s*marks?\b/i);
+          question = {
+            question: mm ? rest.replace(mm[0], ' ').replace(/\s+/g, ' ').trim() : rest,
+            marks: mm ? num(mm[1], 1) : 1, source: '', answer: [], steps: [], code: ''
+          };
+          mode = 'question';
+          continue;
+        }
+
+        if (mode === 'glance') {
+          const w = t.match(/Exam\s*weight\s*[:\-]\s*(\d+)\s*marks?/i);
+          if (w) { topic.marks = num(w[1], 1); topic.marksLabel = String(w[1]); }
+          const r = t.match(/ROI\s*rank\s*[:\-]\s*(\d+)/i);
+          if (r) topic.rank = num(r[1], topic.rank);
+          if (/Appears\s*on\s*every\s*paper\s*[:\-]\s*(YES|TRUE|1)/i.test(t)) topic.everyPaper = true;
+          const tg = t.match(/Target\s*[:\-]\s*(\d+)/i);
+          if (tg && !meta.target) meta.target = num(tg[1], 0);
+        } else if (mode === 'concept') {
+          appendParagraph(topic.concepts, t);
+        } else if (mode === 'formula') {
+          topic.formulas.push(t.replace(/^\s*[-*•]\s*/, ''));
+        } else if (mode === 'question' && question) {
+          appendText(question, 'question', t);
+        } else if (mode === 'answer' && question) {
+          appendParagraph(question.answer, t);
+        } else if (mode === 'steps' && question) {
+          if (/^\d+[.)]\s+/.test(t)) question.steps.push(t.replace(/^\d+[.)]\s+/, ''));
+          else if (question.steps.length) question.steps[question.steps.length - 1] += ' ' + t;
+          else question.steps.push(t);
+        }
+      }
+      flushQ();
+      if (topic.marks === 1) {
+        const qm = topic.questions.reduce((a, q) => a + q.marks, 0);
+        if (qm > 1) topic.marks = qm;
+      }
+      topics.push(topic);
+    }
+
+    if (!topics.length) return null;
+    return normalizeSubject({
+      name: meta.name || fallbackName || 'Imported subject',
+      code: meta.code || '',
+      examTotal: meta.examTotal || 100,
+      target: meta.target || Math.round((meta.examTotal || 100) * 0.6),
+      examDate: meta.examDate || '',
+      topics,
+      plan: { blueprint: null, ranking: null, schedule: null, checklist: null },
+    });
   }
 
   function parseHeuristic(text, fallbackName) {
@@ -1646,7 +1871,7 @@
 
     if (step === 3) {
       openModal(`<h2>Upload your study plan</h2>
-        <p class="muted small">Drop the <code>.txt</code>, <code>.md</code> or <code>.json</code> your agent printed out — or a <code>.pdf</code> if you used one that can produce files. The harness parses all four, offline.</p>
+        <p class="muted small">Drop a study-guide <code>.pdf</code> or the <code>.txt</code>, <code>.md</code> or <code>.json</code> your agent printed out. Ordinary PDFs work too — the app reads their headings, facts and solved questions. Everything is parsed offline.</p>
         <div class="banner banner-info" style="margin-top:10px"><strong>Copy-paste route (ChatGPT / Gemini free tier):</strong> if it printed the marker block inline in the chat, select everything from <code>@@STUDY_TRACKER</code> to <code>@@END</code>, paste into Notepad, save as <code>myplan.txt</code>, upload here.</div>
         ${stepsHtml}
         <div class="dropzone" id="dropzone" role="button" tabindex="0" aria-label="Upload a PDF, JSON, Markdown or text file">

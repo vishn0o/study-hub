@@ -55,9 +55,11 @@ You can keep up to **3 subjects**. Each has its own progress and review history.
 
 ## What the agent must produce
 
-The agent emits a line-marker data block — usually as inline plain text you save as
+Ideally the agent emits a line-marker data block — usually as inline plain text you save as
 `.txt` or `.md`, sometimes as JSON, occasionally as a PDF (if your model supports it).
-The app parses all four formats offline. The full spec is in the in-app prompt, but the core markers are:
+The app also accepts an ordinary, human-readable study-guide PDF: it detects unit headings,
+key facts, formula sets and solved questions and turns them into a subject. The full spec
+for the marker format is in the in-app prompt, but the core markers are:
 
 ```
 @@STUDY_TRACKER v1

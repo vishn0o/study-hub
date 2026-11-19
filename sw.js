@@ -1,7 +1,7 @@
 /* Study Hub service worker — precaches the entire app for offline use.
    Bump CACHE_NAME on every push that ships new assets (app.js, styles.css, etc.). */
 
-const CACHE_NAME = 'study-hub-v3';
+const CACHE_NAME = 'study-hub-v4';
 const PRECACHE = [
   './',
   './index.html',
