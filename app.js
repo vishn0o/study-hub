@@ -540,9 +540,6 @@
     }
     const perDay = remaining === 0 ? 0 : Math.ceil(remaining / Math.max(1, days));
     const pace = remaining === 0 ? 'All questions mastered' : (days === 0 ? 'Exam is today' : `≈${perDay} question${perDay === 1 ? '' : 's'} a day to finish`);
-    const pct = s.examTotal ? Math.min(100, Math.round(st.score / s.examTotal * 100)) : 0;
-    const judge = remaining === 0 ? 'pill-green' : (perDay <= 3 ? 'pill-teal' : perDay <= 6 ? 'pill-orange' : 'pill-red');
-    const verdict = remaining === 0 ? 'Mastered' : days === 0 ? 'Today' : perDay <= 3 ? 'On track' : perDay <= 6 ? 'Needs focus' : 'Grind mode';
     return `<section class="summary-strip${days <= 7 ? ' danger' : ''}" role="region" aria-label="Exam summary">
       <div class="summary-cell">
         <span class="summary-label">Exam in</span>
@@ -552,11 +549,6 @@
           <div class="cd-box"><strong id="cdS">00</strong><span>Sec</span></div>
         </div>
         <span class="summary-sub">${esc(fmtDate(s.examDate))} · ${esc(pace)}</span>
-      </div>
-      <div class="summary-cell">
-        <span class="summary-label">Predicted score</span>
-        <div class="summary-peer"><strong>${st.score}</strong><span class="summary-den">/ ${s.examTotal}</span><span class="pill ${judge}">${verdict}</span></div>
-        <div class="summary-meter" role="progressbar" aria-label="Predicted score" aria-valuemin="0" aria-valuemax="${s.examTotal}" aria-valuenow="${st.score}"><div class="summary-fill" style="width:${pct}%"></div></div>
       </div>
       <div class="summary-cell">
         <span class="summary-label">Questions left</span>
