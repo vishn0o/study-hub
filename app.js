@@ -283,7 +283,7 @@
 
   // leading marks number from strings like "0-2 (foundation for 5m expressions)" -> 2
   function leadingMarks(str) {
-    const m = String(str == null ? '' : str).match(/^\s*(\d+)(?:\s*-\s*(\d+))?/);
+    const m = String(str == null ? '' : str).match(/^\s*(\d+(?:\.\d+)?)(?:\s*-\s*(\d+(?:\.\d+)?))?/);
     if (!m) return 1;
     return m[2] ? Math.max(+m[1], +m[2]) : +m[1];
   }
@@ -1470,14 +1470,14 @@
         if (!t) continue;
         if (/^(?:chapter|unit|topic|part|section|module)\s+(?:\d+|[ivxlcdm]+)\b/i.test(t)) { title = ''; break; }
         if (!title) {
-          if (t.length > 90 || /:/.test(t)) { title = t.replace(/\s*[:\-].*$/, ''); break; }
+          if (t.length > 90 || /:/.test(t)) { title = t.replace(/[ \t]+[:\-].*$/, ''); break; }
           title = t;
         } else {
           if (t.length > 90 || /:/.test(t) || /\b(guide|handbook|notes|slides|syllabus|paper|plan)\b/i.test(t)) break;
           title += ' ' + t;
         }
       }
-      return title.trim();
+      return title.trim().replace(/\s+(?:END[- ]SEMESTER|EXAM\s+STRATEGY|STRATEGY|STUDY\s+PLAN|SOLVED\s+PYQ\s+BANK|COMPLETE\s+STUDY\s+GUIDE)\b.*$/i, '').trim();
     };
 
     // ----- subject metadata -----
@@ -1489,6 +1489,9 @@
     meta.examTotal = totalStr ? num(totalStr, 0) : 0;
     const targetStr = grab(/(?:^|\n|\|\s*)Target\s*[:\-]\s*([0-9]+)/i) || grab(/Your\s*target\s+(\d+)/i);
     meta.target = targetStr ? num(targetStr, 0) : 0;
+    // "Target: 30+ / 50 Marks" gives both numbers at once.
+    const tm = joined.match(/Target\s*[:\-]\s*(\d+)\s*\+\s*\/\s*(\d+)\s*Marks?/i);
+    if (tm) { meta.target = num(tm[1], meta.target); meta.examTotal = num(tm[2], meta.examTotal); }
     meta.name = grab(/(?:^|\n)Subject\s+([^\n|]+)/i);
     meta.code = grab(/(?:^|\n)Course\s*code\s+([^\n|]+)/i);
     if (!meta.code) {
@@ -1498,29 +1501,44 @@
         if (part) meta.code = part;
       }
     }
+    if (!meta.code) {
+      const cm = joined.match(/\(([A-Z]{2,}\s*\d{4}(?:\s*\/\s*[A-Z]{2,}\s*\d{4})*)\)/);
+      if (cm) meta.code = cm[1].replace(/\s*\/\s*/g, ' / ');
+    }
     if (!meta.name) meta.name = guessTitle();
 
     // ----- locate unit headings (PART/UNIT/CHAPTER or markdown) -----
     const partRe = /^PART\s+(?:\d+|[IVXLCDM]+)\s*[:.\-]?\s*(.*)$/i;
     const unitRe = /^(?:UNIT|CHAPTER|MODULE|SECTION|TOPIC)\s+(?:\d+|[IVXLCDM]+)\s*[:.\-]?\s*(.*)$/i;
     const mdRe = /^#{1,4}\s+(.+)$/;
-    const partIdx = [], unitIdx = [], mdIdx = [];
+    const candidates = [];
     lines.forEach((l, i) => {
       const t = l.trim();
-      if (partRe.test(t)) partIdx.push(i);
-      else if (unitRe.test(t)) unitIdx.push(i);
-      else if (mdRe.test(t)) mdIdx.push(i);
+      const m = t.match(partRe) || t.match(unitRe) || t.match(mdRe);
+      if (!m) return;
+      // A "Topic 1: ..." heading is a real section; "Topic 1 ... 12.3 M 8.5 hrs"
+      // is a weightage row, and "Unit VII - Topic:" inside a summary table isn't one.
+      const labeled = !!t.match(partRe);
+      const sep = (t.match(/^(?:UNIT|CHAPTER|MODULE|SECTION|TOPIC|PART)\s+(?:\d+|[IVXLCDM]+)\s*([:.\-]?)\s*/i) || [])[1] || '';
+      const pri = (labeled || sep === ':' || sep === '.') ? 3 : 1;
+      const title = (m[1] || '').trim();
+      if (title.length > 140) return;
+      if (/\b\d+(?:\.\d+)?\s*M\b/i.test(title) || /\bhrs\b/i.test(title) || /checkpoint|mandatory|prerequisite/i.test(title)) return;
+      candidates.push({ i, pri });
     });
-    const heads = partIdx.length ? partIdx : (unitIdx.length ? unitIdx : mdIdx);
+    if (!candidates.length) return null;
+    const bestPri = Math.max(...candidates.map(c => c.pri));
+    const heads = candidates.filter(c => c.pri === bestPri).map(c => c.i);
     if (!heads.length) return null;
     const headingRe = (l) => partRe.test(l.trim()) || unitRe.test(l.trim()) || mdRe.test(l.trim());
     // A real question header has marks, punctuation or a decent amount of
     // text after the number — a bare "Q1" in a circuit diagram is not one.
     const isQ = (l) => {
-      const m = l.trim().match(/^Q(?:uestion)?\s*\.?\s*\d+\b(.*)$/i);
+      const m = l.trim().match(/^(?:Practice\s+)?Q(?:uestion)?\s*\.?\s*\d+\b(.*)$/i);
       if (!m) return false;
       const rest = m[1].trim();
       if (/[\[(]\s*\d+\s*marks?\s*[\])]/i.test(rest)) return true;
+      if (/^\[[^\]]*\b\d+(?:\.\d+)?\s*marks?\b[^\]]*\]/i.test(rest)) return true;
       if (/^[A-Za-z"'\d]/.test(rest) && rest.length >= 12) return true;
       return /^[:.\-]\s*[A-Za-z]/.test(rest);
     };
@@ -1540,9 +1558,23 @@
         }
       }
       if (!title) continue;
+      // Wrapped headings like "Topic 3: ... (Unit II" / "— 9.3 Marks)".
+      while (cursor < end && title.split('(').length > title.split(')').length
+             && /^[—\-–]\s*[\d.]+\s*Marks?\b/i.test(lines[cursor].trim())) {
+        title += ' ' + lines[cursor].trim();
+        cursor++;
+      }
+      const tm = title.match(/\(\s*(?:Unit\s+[IVXLCDM\d]+\s*[—\-–]\s*)?([\d.]+)\s*Marks?\b/i);
+      let headingMarks = 0;
+      if (tm) {
+        headingMarks = num(tm[1], 0);
+        title = title.replace(/\([^)]*\)/g, '').trim();
+      }
+      title = title.replace(/\([^)]*$/, '').trim();
 
       const topic = {
-        title, marks: 1, marksLabel: '', everyPaper: false,
+        title, marks: headingMarks || 1, marksLabel: headingMarks ? String(headingMarks) : '',
+        everyPaper: /guaranteed|every\s*paper/i.test(lines[start]),
         rank: h + 1, concepts: [], formulas: [], questions: []
       };
       let mode = null, question = null, inSolved = false;
@@ -1567,27 +1599,45 @@
 
         if (isQ(t)) {
           flushQ();
-          const rest = t.replace(/^Q(?:uestion)?\s*\.?\s*\d+\s*/i, '');
-          const mm = rest.match(/[\[(]\s*(\d+)\s*marks?\s*[\])]/i) || rest.match(/\b(\d+)\s*marks?\b/i);
-          let qtext = mm ? rest.replace(mm[0], ' ') : rest;
+          const rest = t.replace(/^(?:Practice\s+)?Q(?:uestion)?\s*\.?\s*\d+\s*/i, '');
+          let qtext = rest;
           let source = '';
-          const sm = qtext.match(/\b(?:[A-Z]{2,}\s*\d{4}\s*Q[\w\/\s-]*|(?:19|20)\d{2}\s*Q[\w\/\s-]*|SYNTHESIZED)\b/i);
-          if (sm) { source = sm[0].trim(); qtext = qtext.replace(sm[0], ' '); }
-          qtext = qtext.replace(/\s+/g, ' ').trim();
+          const bracket = rest.match(/^\[([^\]]+)\]/);
+          let bracketMarks = null;
+          if (bracket) {
+            qtext = rest.slice(bracket[0].length);
+            bracketMarks = bracket[1].match(/\b(\d+)\s*marks?\b/i);
+            if (!/^\s*\d+(?:\.\d+)?\s*marks?\s*$/i.test(bracket[1])) {
+              source = bracket[1].replace(/^PYQ:\s*/i, '').replace(/[\-—–]\s*\d+(?:\.\d+)?\s*marks?\s*$/i, '').trim();
+            }
+          }
+          const mm = qtext.match(/\b(\d+)\s*marks?\b/i) || bracketMarks;
+          if (mm) qtext = qtext.replace(mm[0], ' ');
+          if (!source) {
+            const sm = qtext.match(/\b(?:[A-Z]{2,}\s*\d{4}\s*Q[\w\/\s-]*|(?:19|20)\d{2}\s*Q[\w\/\s-]*|SYNTHESIZED)\b/i);
+            if (sm) { source = sm[0].trim(); qtext = qtext.replace(sm[0], ' '); }
+          }
+          qtext = qtext.replace(/^[\[\]:\-—–\s]+|[\[\]:\-—–\s]+$/g, '').replace(/\s+/g, ' ').trim();
           question = { question: qtext, marks: mm ? num(mm[1], 1) : 1, source, answer: [], steps: [], code: '' };
           mode = 'question';
           continue;
         }
-        if (/^(MODEL\s+ANSWER|ANSWERS?|SOLUTION)\b[:.]?\s*$/i.test(t)) { if (question) mode = 'answer'; continue; }
+        const am = t.match(/^(?:(?:MODEL\s+ANSWER|ANSWERS?|SOLUTION|STEP[- ]BY[- ]STEP\s+ANSWER))\b[:.]?\s*(.*)$/i);
+        if (am) {
+          if (question) { mode = 'answer'; if (am[1].trim()) appendParagraph(question.answer, am[1]); }
+          continue;
+        }
         if (/^(WORKED\s+STEPS?|WORKED\s+SOLUTION|WORKING)\b[:.]?\s*$/i.test(t)) { if (question) mode = 'steps'; continue; }
         if (/^AT\s+A\s+GLANCE\b/i.test(t)) { mode = 'glance'; continue; }
-        if (/^KEY\s+FACTS?\b|^KEY\s+CONCEPTS?\b/i.test(t)) { mode = 'concept'; continue; }
+        if (/^(?:\d+(?:\.\d+)?\s*)?(?:KEY\s+FACTS?|KEY\s+CONCEPTS?|CORE\s+THEORY|KEY\s+EQUATIONS?|THEORY\s*&\s*KEY\s+EQUATIONS?)\b/i.test(t)) { mode = 'concept'; continue; }
+        if (/^(?:\d+(?:\.\d+)?\s*)?PRACTICE\s+QUESTIONS?\b/i.test(t)) { inSolved = true; mode = null; continue; }
         if (/^(FORMULA\s*SET|FORMULAS?|FORMULAE)\b/i.test(t)) { mode = 'formula'; continue; }
         if (/^SOLVED\s+QUESTIONS?\b/i.test(t)) { inSolved = true; mode = null; continue; }
         if (/^(?:CIRCUIT\s+PICTURES?|FIGURES?|DIAGRAMS?|TABLES?|DIAGRAM\s*\/\s*TRACE)\b/i.test(t)) { mode = 'ignore'; continue; }
         if (headingRe(t)) break;
 
-        if (inSolved && mode !== 'steps' && /^\d+[.)]\s+\S/.test(t)) {
+        if (inSolved && !mode && /^\d+[.)]\s+\S/.test(t)
+            && (/[?？]|\b(?:what|why|how|find|determine|calculate|explain|design|prove|compute|draw|derive)\b/i.test(t) || /\b\d+\s*marks?\b/i.test(t))) {
           flushQ();
           const rest = t.replace(/^\d+[.)]\s+/, '');
           const mm = rest.match(/[\[(]\s*(\d+)\s*marks?\s*[\])]/i) || rest.match(/\b(\d+)\s*marks?\b/i);
@@ -1608,13 +1658,18 @@
           const tg = t.match(/Target\s*[:\-]\s*(\d+)/i);
           if (tg && !meta.target) meta.target = num(tg[1], 0);
         } else if (mode === 'concept') {
-          appendParagraph(topic.concepts, t);
+          const cm = t.match(/^\d+(?:\.\d+)?[.)]\s+(.*)$/) || t.match(/^[-*•]\s+(.*)$/);
+          if (cm) topic.concepts.push(cm[1].trim());
+          else appendParagraph(topic.concepts, t);
         } else if (mode === 'formula') {
           topic.formulas.push(t.replace(/^\s*[-*•]\s*/, ''));
         } else if (mode === 'question' && question) {
           appendText(question, 'question', t);
         } else if (mode === 'answer' && question) {
-          appendParagraph(question.answer, t);
+          if (/^\d+[.)]\s+/.test(t)) {
+            mode = 'steps';
+            question.steps.push(t.replace(/^\d+[.)]\s+/, ''));
+          } else appendParagraph(question.answer, t);
         } else if (mode === 'steps' && question) {
           if (/^\d+[.)]\s+/.test(t)) question.steps.push(t.replace(/^\d+[.)]\s+/, ''));
           else if (question.steps.length) question.steps[question.steps.length - 1] += ' ' + t;
@@ -1623,8 +1678,12 @@
       }
       flushQ();
       if (topic.marks === 1) {
-        const qm = topic.questions.reduce((a, q) => a + q.marks, 0);
-        if (qm > 1) topic.marks = qm;
+        const row = joined.match(new RegExp('Topic\\s*' + (h + 1) + '\\b[^\\n]*?([\\d.]+)\\s*M\\*?\\s+[\\d.]+\\s*hrs', 'i'));
+        if (row) { topic.marks = num(row[1], 1); topic.marksLabel = row[1]; }
+        else {
+          const qm = topic.questions.reduce((a, q) => a + q.marks, 0);
+          if (qm > 1) topic.marks = qm;
+        }
       }
       topics.push(topic);
     }
