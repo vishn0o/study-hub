@@ -359,14 +359,15 @@ h3 { font-weight: 800; }
 .panel[open] .chev { transform: rotate(180deg); }
 .panel-body { padding: 0 18px 18px; }
 .table-wrap { overflow-x: auto; }
-table.plan-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-.plan-table th { text-align: left; background: var(--navy-2); color: #fff; padding: 9px 10px; font-weight: 700; white-space: nowrap; }
-.plan-table th:first-child { border-radius: 7px 0 0 0; }
+table.plan-table { width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed; }
+.plan-table th { text-align: left; background: var(--navy-2); color: #fff; padding: 9px 10px; font-weight: 700; overflow-wrap: anywhere; }
+.plan-table th:first-child { border-radius: 7px 0 0 0; width: 16%; }
+.plan-table th:nth-child(2) { width: 42%; }
 .plan-table th:last-child { border-radius: 0 7px 0 0; }
-.plan-table td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.plan-table td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; }
 .plan-table tr:last-child td { border-bottom: 0; }
 .plan-table tr:nth-child(even) td { background: var(--surface-2); }
-.plan-table td:first-child { font-weight: 700; color: var(--heading); white-space: nowrap; }
+.plan-table td:first-child { font-weight: 700; color: var(--heading); }
 .checklist { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
 .checklist li { position: relative; padding-left: 28px; font-size: 13px; color: var(--ink); }
 .checklist li::before { content: '✓'; position: absolute; left: 0; top: 0; width: 19px; height: 19px; border-radius: 50%; background: var(--teal-soft); color: var(--teal-strong); display: grid; place-items: center; font-size: 11px; font-weight: 800; }

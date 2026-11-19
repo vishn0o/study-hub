@@ -319,6 +319,21 @@
       checklist: planRaw.checklist || raw.checklist || null,
     };
     Object.keys(plan).forEach(k => { if (plan[k] && (!Array.isArray(plan[k]) || !plan[k].length)) plan[k] = null; });
+    // Older imports stored over-wide plan tables; keep them readable on load.
+    const tidyPlan = (rows, kind) => {
+      if (!Array.isArray(rows) || !Array.isArray(rows[0]) || rows[0].length <= 4) return rows;
+      const head = rows[0].map(String).join(' ');
+      const headers = kind === 'blueprint' && /^Priority\b/i.test(head) ? ['Priority', 'Topic', 'Unit', 'Avg. marks']
+        : kind === 'ranking' ? (/Marks\s+Why/i.test(head) ? ['Rank', 'Topic', 'Marks', 'Why it matters'] : ['Rank', 'Topic', 'Unit', 'Avg. marks'])
+        : null;
+      if (!headers) return rows;
+      return [headers, ...rows.slice(1).map(r => {
+        const a = Array.isArray(r) ? r : [r];
+        return kind === 'blueprint' ? [a[0], a[1], a[2], a[6] != null ? a[6] : (a[a.length - 2] || '')] : a.slice(0, 4);
+      })];
+    };
+    plan.blueprint = tidyPlan(plan.blueprint, 'blueprint');
+    plan.ranking = tidyPlan(plan.ranking, 'ranking');
     const topics = (Array.isArray(raw.topics) ? raw.topics : []).map(normTopic);
     const examDate = normExamDate(raw.examDate);
     return {
@@ -1745,23 +1760,23 @@
         headers = ['Unit', 'Topic', 'Weight'];
         parse = (s) => { const m = s.match(/^([IVXLCDM]+)\s+(.+?)\s+(\d+(?:\.\d+)?)\s*marks?$/i); return m ? [m[1], m[2], m[3]] : null; };
       } else if (/^Priority\s+Topic\b/i.test(head)) {
-        headers = ['Priority', 'Topic', 'Unit', "ICE '25", "ICE '24", "ECE '25", 'Avg.', 'Hours'];
+        headers = ['Priority', 'Topic', 'Unit', 'Avg. marks'];
         parse = (s) => {
           const m = s.match(/^Topic\s*(\d+)\s+(.+?)\s+(Unit\s+[IVXLCDM]+)\s+((?:\d+(?:\.\d+)?\s*M\*?\s*)+)([\d.]+\s*hrs)$/i);
           if (!m) return null;
           const marks = m[4].match(/\d+(?:\.\d+)?\s*M\*?/gi) || [];
-          return ['Topic ' + m[1], m[2], m[3], ...marks.map(x => x.replace(/\s*M\*?$/i, '')), m[5]];
+          return ['Topic ' + m[1], m[2], m[3], marks.length ? marks[marks.length - 1].replace(/\s*M\*?$/i, '') : ''];
         };
       } else if (/^Rank\s+Topic\s+Marks\b/i.test(head)) {
         headers = ['Rank', 'Topic', 'Marks', 'Why it matters'];
         parse = (s) => { const m = s.match(/^(\d+)\s+(.+?)\s+(\d+(?:\.\d+)?)\s+(.+)$/); return m ? [m[1], m[2], m[3], m[4]] : null; };
       } else if (/^Rank\s+Topic\s+Title\b/i.test(head)) {
-        headers = ['Rank', 'Topic', 'Unit', 'Avg.', 'Cumul.', 'Exam priority & strategic verdict'];
+        headers = ['Rank', 'Topic', 'Unit', 'Avg. marks'];
         parse = (s) => {
           const m = s.match(/^(\d+)\s+(.+?)\s+(Unit\s+[IVXLCDM]+)\s+((?:\d+(?:\.\d+)?\s*M\s*)+)(.+)$/i);
           if (!m) return null;
           const nums = m[4].match(/\d+(?:\.\d+)?/g) || [];
-          return [m[1], m[2], m[3], nums[0] || '', nums[1] || '', m[5]];
+          return [m[1], m[2], m[3], nums[0] || ''];
         };
       } else if (/^Hours\s+Block\b/i.test(head)) {
         headers = ['Hours', 'Block / Activity', 'Marks target'];
