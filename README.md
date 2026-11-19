@@ -4,6 +4,8 @@ A general, offline study-progress tracker that turns a **study plan from any AI 
 topics, questions, answers, memory hooks, and a live progress + score prediction.
 
 **Live repo:** https://github.com/vishn0o/study-hub
+**Live demo (GitHub Pages):** https://vishn0o.github.io/study-hub/
+**Download as ZIP:** https://github.com/vishn0o/study-hub/archive/refs/heads/main.zip
 
 Everything runs in your browser. No server, no account, no uploads. Fonts are self-hosted,
 PDF.js is vendored locally for PDF imports; text (.txt/.md/.json) imports are parsed directly.
