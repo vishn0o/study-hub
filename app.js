@@ -611,6 +611,7 @@
         <div class="head-actions">
           <button class="btn btn-outline" id="editSubjectBtn" type="button">✎ Edit subject</button>
           <button class="btn btn-outline" id="addTopicBtn" type="button">+ Add topic</button>
+          <button class="btn btn-outline" id="progressBtn" type="button" title="Open your score-over-time chart">Progress</button>
           <button class="btn btn-outline" id="printSheetBtn" type="button">⎙ Print sheet</button>
         </div>
       </section>
@@ -753,6 +754,11 @@
     if (ss) ss.addEventListener('change', e => { viewState.sort = e.target.value; renderTopicGrid(); });
     const es = $('#editSubjectBtn'); if (es) es.addEventListener('click', () => openSubjectEditor());
     const at = $('#addTopicBtn'); if (at) at.addEventListener('click', () => openTopicEditor(null));
+    const prog = $('#progressBtn'); if (prog) prog.addEventListener('click', () => {
+      viewState.mode = viewState.mode === 'progress' ? 'tracker' : 'progress';
+      if (viewState.mode !== 'progress') closeDrawer();
+      refresh();
+    });
     const pr = $('#printSheetBtn'); if (pr) pr.addEventListener('click', () => printRevisionSheet());
     const sd = $('#setExamDate'); if (sd) sd.addEventListener('click', () => openSubjectEditor());
     const wa = $('#welcomeAdd'); if (wa) wa.addEventListener('click', openWizard);
@@ -2433,11 +2439,6 @@
   });
   $('#addSubjectBtn').addEventListener('click', openWizard);
   $('#guideBtn').addEventListener('click', openWizard);
-  $('#progressBtn').addEventListener('click', () => {
-    viewState.mode = viewState.mode === 'progress' ? 'tracker' : 'progress';
-    if (viewState.mode !== 'progress') closeDrawer();
-    refresh();
-  });
   $('#subjectsBtn').addEventListener('click', openSubjectsModal);
   $('#exportBtn').addEventListener('click', exportBackup);
   $('#helpBtn').addEventListener('click', openHelp);

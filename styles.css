@@ -108,7 +108,7 @@ img, svg { max-width: 100%; display: block; }
 .drawer[hidden], .drawer-overlay[hidden], .modal-overlay[hidden], .empty-state[hidden], .toast[hidden] { display: none !important; }
 
 /* ---------- top bar ---------- */
-.topbar { position: sticky; top: 0; z-index: 50; background: var(--navy); color: #fff; box-shadow: 0 2px 14px rgba(0,0,0,.28); }
+.topbar { position: relative; z-index: 50; background: var(--navy); color: #fff; box-shadow: 0 2px 14px rgba(0,0,0,.28); }
 .topbar::before { content:''; position:absolute; top:0; left:0; right:0; height:4px; background: var(--teal); }
 .topbar-inner { max-width: 1280px; margin: 0 auto; padding: 12px 20px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .brand { display: flex; align-items: center; gap: 12px; flex: 0 0 auto; }
