@@ -1530,13 +1530,26 @@
 
     if (step === 1) {
       const full = state.subjects.length >= MAX_SUBJECTS;
+      // sensible default: exam 14 days from today at 09:00
+      const pad = (n) => String(n).padStart(2, '0');
+      const d = new Date(); d.setDate(d.getDate() + 14);
+      const defaultDate = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
       openModal(`<h2>First, your exam window</h2>
-        <p class="muted small">Give us the exam date/time and how many effective hours you actually have. The agent prompt will be tailored to your situation — no boilerplate.</p>
+        <p class="muted small">Tell us when your exam is and how many effective hours you actually have. The prompt will be tailored to your situation — no boilerplate. Already have a plan file from your agent? Skip and upload it now.</p>
         ${full ? `<div class="banner banner-warn">You already have ${MAX_SUBJECTS} subjects (the maximum). You can still prepare the prompt, but you'll need to delete one under <strong>Manage</strong> before importing.</div>` : ''}
         ${stepsHtml}
+        <div class="quick-picks" id="quickPicks" aria-label="Quick date presets">
+          <button type="button" class="qp-chip" data-days="1">Tomorrow</button>
+          <button type="button" class="qp-chip" data-days="7">+1 week</button>
+          <button type="button" class="qp-chip" data-days="14">+2 weeks</button>
+          <button type="button" class="qp-chip" data-days="30">+1 month</button>
+          <button type="button" class="qp-chip" data-days="60">+2 months</button>
+          <button type="button" class="qp-chip" data-days="90">+3 months</button>
+        </div>
         <form id="preflightForm" novalidate>
           <div class="form-grid">
-            <div class="field full"><label for="pf-date">Exam date &amp; time</label><input id="pf-date" name="examDate" type="datetime-local" autocomplete="off"></div>
+            <div class="field"><label for="pf-date">Exam date</label><input id="pf-date" name="examDate" type="date" value="${defaultDate}" autocomplete="off"></div>
+            <div class="field"><label for="pf-time">Exam time</label><input id="pf-time" name="examTime" type="time" value="09:00" autocomplete="off"></div>
             <div class="field"><label for="pf-hours">Effective hours</label><input id="pf-hours" name="hours" type="number" min="1" max="300" step="1" inputmode="numeric" autocomplete="off"></div>
             <div class="field"><label for="pf-target">Target marks</label><input id="pf-target" name="target" type="number" min="1" max="500" step="1" inputmode="numeric" value="30" autocomplete="off"></div>
           </div>
@@ -1546,7 +1559,20 @@
             <button type="button" class="btn btn-outline" data-close>Cancel</button>
             <button type="submit" class="btn btn-primary">Generate my prompt →</button>
           </div>
-        </form>`, { wide: true });
+        </form>
+        <button class="skip-preflight" id="skipPreflight" type="button">Already have a plan file from your agent? Skip the prompt and upload directly →</button>`, { wide: true });
+      // quick-pick chips set the date field
+      document.querySelectorAll('#quickPicks .qp-chip').forEach(btn => btn.addEventListener('click', () => {
+        const days = Number(btn.dataset.days) || 0;
+        const t = new Date(); t.setDate(t.getDate() + days);
+        const pad2 = (n) => String(n).padStart(2, '0');
+        const v = `${t.getFullYear()}-${pad2(t.getMonth() + 1)}-${pad2(t.getDate())}`;
+        const dateEl = document.querySelector('#pf-date');
+        dateEl.value = v; dateEl.focus();
+        const timeEl = document.querySelector('#pf-time'); if (timeEl && !timeEl.value) timeEl.value = '09:00';
+      }));
+      // skip button: jump straight to upload step with no prompt
+      $('#skipPreflight').addEventListener('click', () => { wz.answers = null; wz.step = 3; renderWizard(); });
       const hoursEl = document.querySelector('#pf-hours');
       const hintEl = document.querySelector('#modeHint');
       const updateHint = () => {
@@ -1561,12 +1587,13 @@
         const err = document.querySelector('#preflightError');
         const showErr = m => { err.textContent = m; err.classList.add('is-show'); err.focus(); };
         const date = form.examDate.value;
+        const time = form.examTime.value || '09:00';
         const hours = Math.round(Number(form.hours.value));
         const target = Math.round(Number(form.target.value));
-        if (!date) return showErr('Pick the exact date and time of your exam (not a guess).');
+        if (!date) return showErr('Pick the exam date (use a quick link if easier).');
         if (!Number.isFinite(hours) || hours < 1 || hours > 300) return showErr('Enter the effective hours you can realistically study (1 – 300).');
         if (!Number.isFinite(target) || target < 1 || target > 500) return showErr('Enter target marks between 1 and 500.');
-        wz.answers = { examDate: date, effectiveHours: hours, target };
+        wz.answers = { examDate: `${date}T${time}`, effectiveHours: hours, target };
         wz.step = 2;
         renderWizard();
       });
