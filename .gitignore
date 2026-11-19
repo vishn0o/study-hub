@@ -1,0 +1,31 @@
+# OS junk
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.iml
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# Test scaffolding (deleted in this repo, keep out in case of re-creation)
+_server.js
+_maketest.js
+_audit.js
+_test-*.pdf
+_test-*.json
+study-hub-test.db
+
+# Vercel / Netlify / similar
+.vercel/
+.netlify/
+
+# Logs
+*.log

@@ -1,0 +1,174 @@
+# Study-Hub Agent Prompt (v2)
+
+One system-style prompt. Paste it as a single message into any chat LLM (Gemini, Claude, ChatGPT, Llama, etc.), attach your study material, and get back **one PDF** with a Study-Hub data block appended at the end.
+
+License: MIT. Fork it, teach it, post it.
+
+Project: [study-hub](../study-hub/) — the app this prompt pairs with.
+
+---
+
+## How to use
+
+1. Copy everything from the `--- PASTE INTO THE LLM ---` line through the line `--- END OF THE PROMPT — stop pasting here ---`.
+2. Paste it as ONE single message into your LLM.
+3. When the model asks, attach your files (or paste them).
+4. The model outputs a single PDF with the data block appended at the very end — then upload it into study-hub (this repo) → **+ Add subject → Upload**.
+
+If the model is unable to produce a PDF directly, it outputs the same as `.md` or `.txt` — the app parses both.
+
+---
+
+## What to attach
+
+1. Syllabus / unit-wise topic list.
+2. Previous-year question papers (PYQs) — with marks.
+3. Your study notes / slides / textbook extracts.
+4. Marking scheme / blueprint, if you have one.
+5. Any existing study guide / formula sheet.
+
+If something's missing, the model will flag it (rather than fabricate) and recommend the best-honest fallback.
+
+---
+
+## Fill in (or let the model ask you)
+
+```text
+SUBJECT & COURSE CODE — e.g. CS 101, Intro to Programming
+EXAM NAME & UNIVERSITY — e.g. End Semester Examination, Example University
+TARGET — e.g. "guarantee 25/50"
+EXAM DATE & TIME — the date and time of the exam
+EFFECTIVE STUDY HOURS — hours you can realistically focus (not calendar time)
+```
+
+---
+
+--- PASTE INTO THE LLM ---  (everything from the next line on is the prompt)
+You are converting my study material into a "guaranteed pass" study-plan PDF for [SUBJECT + COURSE CODE] at [EXAM NAME + UNIVERSITY].
+I have attached the syllabus, notes and PYQs.
+
+MY GOAL — non-negotiable
+- Exam is on [DATE & TIME].
+- I have [N] effective study hours in that window — not calendar time; don't schedule more.
+- I want [X marks out of Y] as a guaranteed pass.
+- The documents I have attached are: [list them].
+
+BEFORE writing, ask me these questions in ONE message — and wait for my answer:
+1. "When is your exam — exact date and start time?"
+2. "How many effective hours can you realistically focus (not calendar time)?"
+3. "Are we in CRASH, STANDARD, or DEEP mode?" (see below)
+4. "I see these files: [list]. Is anything else missing?"
+5. "Any question type you expect — trace / debug / convert / draw / compare / prove / etc.?"
+
+Do not guess. Do not hard-code a 24-hour assumption.
+
+=== TIMING MODES ===
+CRASH (<10 effective hours)
+- Prune to PYQ-heavy, high-ROI topics only; off-paper topics go first. Mark them "SKIP" with reason.
+- Schedule to fit [N] hours honestly: 45–90 min blocks, sleep, competence checkpoints written down explicitly.
+- 2 long mock solves at the end.
+- Never drop quality to gain speed — cut SCOPE, not depth.
+
+STANDARD (10–36 effective hours)
+- Cover every PYQ topic; trim only at the margins.
+- Full skeleton per topic: bullets → worked example → 5 practice questions → model answers → traps.
+- Final locked block: mock solves ranked by ROI first.
+
+DEEP (36+ effective hours)
+- Cover the full syllabus, PYQ-first, then outward edges.
+- Same skeleton, plus spaced sessions, with mocks scattered throughout.
+
+QUALITY IS CONSTANT across modes:
+- 5 practice questions per topic.
+- Worked examples, step-by-step solutions, model answers — never dropped.
+- The model never fabricates a marking scheme, a PYQ, or its own schedule.
+- Every guessed number is marked "I'm assuming…".
+
+=== YOUR OUTPUT — ONE PDF in four parts ===
+
+PART 1 — PLAN OF CAMPAIGN
+- What the PDF contains, what it deliberately omits (highest-risk statement in one line: "this PDF covers X/Y").
+- The honest hour split.
+
+PART 2 — THE STUDY PLAN (topic by topic, highest ROI first)
+For each topic:
+- What the topic is and why it matters (one or two sentences).
+- Formulas / memory hooks — everything a weak student forgets.
+- Key questions I must be able to answer cold.
+- Worked example: a real PYQ from the attached papers, every step shown, every mark labelled.
+- Common mistakes / traps.
+- 5 practice questions, each with:
+  a. PYQ tag (year + paper) or "SYNTHESIZED".
+  b. Full step-by-step solution — no "similarly", no skipping.
+  c. Exam-fresh model answer — compressed and mark-friendly.
+  d. Steps to remember while solving this question type.
+  e. Traps / marks lost here.
+
+PART 3 — RANKING & SCHEDULING
+- Table: Rank | Topic | Marks/Paper | Recurrence | ROI | Why.
+- A realistic hourly schedule anchored to the exam date; sleep and breaks explicit; final locked mock solves at the end.
+
+PART 4 — STUDY HUB DATA BLOCK (this output feeds a real app)
+Appended at the very end of the PDF. Nothing appears after @@END.
+Plain ASCII. One marker per line. Straight quotes ONLY. No emoji.
+
+@@STUDY_TRACKER v1
+@@SUBJECT <subject name>
+@@COURSE <course code>
+@@EXAM <total marks>
+@@TARGET <e.g. 30>
+@@EXAMDATE <YYYY-MM-DD or YYYY-MM-DDTHH:MM>
+@@DESC <one-line description>
+
+## PER TOPIC:
+@@TOPIC <topic title>
+@@MARKS <marks, whole number>
+@@EVERY <true if this topic appears every paper>
+@@RANK <ROI rank; 1 = highest>
+@@CONCEPT <key fact, rule, formula, memory hook>
+@@FORMULA <LaTeX — only if the topic has formulas>
+@@QUESTION <full question text, tagged with year/paper if a PYQ>
+@@QMARKS <marks the question is worth — whole number>
+@@SOURCE <e.g. "2024 Q2" or "SYNTHESIZED">
+@@ANSWER <one paragraph of the model answer>
+@@STEP <one solving step>
+@@STEP <another solving step>
+@@CODE
+<code / trace / diagram lines>
+@@ENDCODE          ← only if the answer needs code or a diagram
+@@ENDQ
+
+## AFTER ALL TOPICS:
+@@PLAN_RANKING
+Rank | Topic | Marks | ROI
+@@ENDPLAN_RANKING
+@@PLAN_SCHEDULE
+Hours | Block | Marks target
+@@ENDPLAN_SCHEDULE
+@@CHECKLIST <things to do in the final locked phase>
+@@END
+
+RULES FOR THE DATA BLOCK
+- ASCII only, no smart quotes, no curly apostrophes, no emoji, no BOM.
+- Every marker begins at column 0 with @@ and exactly one space.
+- No hand-wrapping; send the line as-is.
+- If a normal prose line would start with @@, add ONE leading space.
+- Don't translate/rename/reorder markers — the importer is exact.
+- Marks and ranks are whole numbers.
+- Omit empty placeholder lines (e.g. no formula ⇒ delete the @@FORMULA line).
+- The block ENDS the PDF — nothing after @@END.
+- If a PDF cannot be produced, output the identical content as .md or .txt instead.
+
+--- END OF THE PROMPT — stop pasting here ---
+
+---
+
+## Contributing
+
+This is the study-hub prompt server. Improvements welcome as long as:
+- Marker names in the DATA BLOCK stay stable — the app parses by exact name.
+- The quality bar stays constant across CRASH / STANDARD / DEEP.
+- The output is ONE runnable study PDF, not an essay about studying.
+- All worked examples show every step.
+
+MIT — fork freely.
