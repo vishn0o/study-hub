@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#10243a" />
   <meta name="description" content="Upload a study PDF from any AI agent and track topics, questions and your predicted score. All data stays in your browser." />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2310243a'/%3E%3Ctext x='32' y='42' font-family='Arial Black,Arial' font-size='26' font-weight='800' fill='%23f0a24c' text-anchor='middle'%3ESH%3C/text%3E%3C/svg%3E" />
   <title>Study Hub — Progress &amp; Score Tracker</title>
   <link rel="stylesheet" href="fonts.css" />
@@ -95,5 +97,59 @@
   <script src="prompt.js"></script>
   <script src="sample.js"></script>
   <script src="app.js"></script>
+  <script>
+    (function () {
+      if (!('serviceWorker' in navigator)) return;
+      navigator.serviceWorker.register('./sw.js', { scope: './' }).catch(() => {});
+
+      var installPrompt = null;
+      var dismissed = false;
+      try { dismissed = !!localStorage.getItem('study-hub-install-dismissed'); } catch (e) {}
+
+      function ensureChip() {
+        if (dismissed || !installPrompt) return;
+        if (document.getElementById('installChip')) return;
+        var chip = document.createElement('div');
+        chip.id = 'installChip';
+        chip.className = 'install-chip';
+        chip.setAttribute('role', 'region');
+        chip.setAttribute('aria-label', 'Install Study Hub');
+        chip.innerHTML = '<span class="install-label">⚡ Install app</span><button type="button" id="installAccept">Install</button><button type="button" class="install-dismiss" id="installDismiss" aria-label="Dismiss">✕</button>';
+        document.body.appendChild(chip);
+        document.getElementById('installAccept').addEventListener('click', async function () {
+          if (!installPrompt) return;
+          installPrompt.prompt();
+          try {
+            var outcome = await installPrompt.userChoice;
+            if (outcome && outcome.outcome) {
+              chip.remove();
+              installPrompt = null;
+            }
+          } catch (e) {}
+        });
+        document.getElementById('installDismiss').addEventListener('click', function () {
+          try { localStorage.setItem('study-hub-install-dismissed', '1'); } catch (e) {}
+          chip.remove();
+        });
+      }
+
+      window.addEventListener('beforeinstallprompt', function (e) {
+        e.preventDefault();
+        installPrompt = e;
+        if (document.readyState === 'complete' || document.readyState === 'interactive') {
+          ensureChip();
+        } else {
+          window.addEventListener('load', ensureChip, { once: true });
+        }
+      });
+
+      // Hide chip when app is successfully installed
+      window.addEventListener('appinstalled', function () {
+        var chip = document.getElementById('installChip');
+        if (chip) chip.remove();
+        installPrompt = null;
+      });
+    })();
+  </script>
 </body>
 </html>

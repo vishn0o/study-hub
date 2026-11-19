@@ -9,6 +9,7 @@ topics, questions, answers, memory hooks, and a live progress + score prediction
 
 Everything runs in your browser. No server, no account, no uploads. Fonts are self-hosted,
 PDF.js is vendored locally for PDF imports; text (.txt/.md/.json) imports are parsed directly.
+**Installable as a PWA** — works offline, on the go, on flaky train wifi.
 
 ---
 
