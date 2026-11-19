@@ -2,86 +2,65 @@
    The prompt below is a template — call buildAgentPrompt(answers) to instantiate it.
    Keep the DATA BLOCK section in sync with the parser in app.js. */
 
-const AGENT_PROMPT_TEMPLATE = `You are converting my study material into a "Study Hub" import file.
+const AGENT_PROMPT_TEMPLATE = `Convert my study material into a structured plain-text file that my study-app can consume. Your whole job is exactly that, nothing else. Do not summarise, do not produce a separate PDF, do not ask me any questions, do not respond with anything except the marker block below.
 
-MY EXAM CONTEXT — non-negotiable, do not answer until you've internalised these
-- Subject / exam: WE WILL DEFINE THIS TOGETHER (see step 2 below).
-- Exam date and time: {{EXAM_DATETIME}}  ← you will use this in @@EXAMDATE, exactly as given
-- Effective study hours (realistic, not calendar): {{EFFECTIVE_HOURS}} hours
-- Target: {{TARGET}}  ← "guaranteed pass" target, do NOT produce a full-syllabus tour
-- Timing mode (computed from my hours): {{MODE}}
-- If I don't know something, ask — do not guess. Never invent a date, a mark or a question.
+YOUR TASK — ONE OUTPUT ONLY
+Emit ONE code-block (or ONE attached file) containing the STUDY_TRACKER block described below, ending after @@END. No prose before or after it.
 
-=== TIMING MODES (the mode is selected for you above) ===
+If you cannot emit a file, the entire response you give me is the contents of that file. I will copy-paste it into a .txt and upload it to my app.
 
-CRASH (<10 effective hours)
-- Prune to PYQ-heavy, high-yield topics only. Off-paper material goes first. SKIP off-paper topics — mark as "SKIP" with a one-line reason.
-- 45–90 minute blocks. Sleep. Every block has an explicit time budget and the marks it targets.
-- 2 long mock solves in the final stretch, graded.
+MY EXAM CONTEXT — READ THIS BEFORE YOU WRITE
+- Exam date and time: {{EXAM_DATETIME}}
+- Effective study hours (not calendar): {{EFFECTIVE_HOURS}}
+- Mode: {{MODE}}
+- Target: {{TARGET}}
+- Subjects: you will infer them from the attachments I give you.
+- If I do not give you the subject name / course code / exam total, INFER FROM THE ATTACHMENTS. Do not ask me to clarify — look at the file's content and figure it out.
+- If you cannot find total marks anywhere, leave @@EXAM as the summed total of the topics you give.
 
-STANDARD (10–36 effective hours)
-- Cover every PYQ topic; trim only at the margins.
-- Full skeleton per topic: key facts → worked example → 5 practice questions → model answers → traps.
-- 1 locked mock in the final 2–3 hours, by ROI first.
+=== TIMING MODES (you read this; you don't ask me which applies) ===
+- CRASH (<10 effective hours): prune to PYQ-heavy, high-yield topics only. Off-paper material SKIPPED — label them "SKIP". 45–90 minute blocks. Sleep. 2 mock solves at the end.
+- STANDARD (10–36 effective hours): every PYQ topic; trim at the margins. Full skeleton per topic: key facts → worked example → 5 practice questions → model answers → traps. Locked mock at the end.
+- DEEP (36+ effective hours): full syllabus, PYQ-first then outward edges. Same skeleton plus mocks + spaced sessions.
 
-DEEP (36+ effective hours)
-- Cover the full syllabus; PYQ-first; then outward edges.
-- Same skeleton per topic + spaced sessions with mocks scattered.
-- A comprehensive locked mock at the end.
+QUALITY IS CONSTANT ACROSS MODES
+- 5 practice questions per topic, worked to the last step, with model answers and mark estimates for each.
+- Do NOT shrink depth to fit time — cut topics, never quality.
+- Every claim must be traceable to my attached material or a typical textbook; never invent facts.
 
-QUALITY IS CONSTANT ACROSS ALL MODES
-- 5 practice questions per topic, complete step-by-step solutions, model answers, memory hooks, formulas.
-- You will NOT shrink depth, skip worked examples or drop model answers because time is tight. Cut topics; never quality.
-
-WHAT I WILL ATTACH
+WHAT I AM ATTACHING
 1. My syllabus or unit list.
-2. My previous-year question papers (PYQs) with marks.
-3. My study notes / slides / textbook extracts.
+2. My previous-year question papers (PYQs) — with marks if available.
+3. My study notes, slides or textbook extracts.
 4. (Optional) Marking scheme / blueprint.
-5. (Optional) Which topics appear on every paper — drives the @@EVERY flag.
+5. (Optional) Which topics recur every paper.
 
-YOUR TASK
-1. Split the syllabus into 5–15 topics, in order of exam urgency (highest-ROI first).
-2. For each topic: key concepts, rules, formulas, memory hooks, AND every relevant PYQ with a complete worked answer.
-3. Use the marks printed on the paper. If marks are missing, estimate conservatively.
-4. Size the plan to the {{EFFECTIVE_HOURS}} hours above — no safety padding. Be honest about what's skipped in CRASH.
-5. Produce ONE PDF. Put a short study guide first if you like, then the machine-readable DATA BLOCK at the very end.
+YOUR OUTPUT — FORMAT OF THE MARKER BLOCK
+Plain ASCII, one marker per line, two @ signs at column 0 then ONE space. Straight quotes (" ') only. No smart quotes, no curly apostrophes, no emoji, no BOM.
 
-FORMAT RULES (critical)
-- Use plain ASCII only: straight quotes ( ' and " ), hyphens, no smart quotes, no curly apostrophes, no emoji.
-- Put the DATA BLOCK at the very end, on its own page(s), in a monospaced font.
-- Add NO page numbers, headers, footers, watermarks or decorations on those pages.
-- Do not hand-wrap marker lines; let the PDF wrap naturally.
-- Every marker line starts at the beginning of a line with two @ signs and a space after the marker name.
-- If a normal content line would start with two @ signs, add one leading space to it.
-- Do not translate, rename or reorder the markers — the importer is exact.
-- Marks and ranks must be whole numbers.
-- The DATA BLOCK is plain text inside your PDF, not a separate file. If you cannot emit a PDF, output the same text as a .txt / .md file and I can upload that.
-- Quality over quantity: focus on {{EFFECTIVE_HOURS}} hours of real coverage, not a comprehensive syllabus tour.
-
-DATA BLOCK FORMAT (internal — visible to you, the assistant, and the app)
 @@STUDY_TRACKER v1
-@@SUBJECT <subject name>
+@@SUBJECT <subject name; infer from files>
 @@COURSE <course code, optional>
-@@EXAM <total marks in the paper, whole number>
-@@TARGET <{{TARGET}}>
+@@EXAM <total marks, whole number>
+@@TARGET {{TARGET}}
 @@DESC <one-line description>
 @@EXAMDATE {{EXAM_DATETIME}}
-@@TOPIC <topic title>
-@@MARKS <marks this topic is worth — whole number>
-@@EVERY <true if this topic appears on EVERY paper / is high ROI, otherwise false>
-@@RANK <study priority: 1 = study first>
-@@CONCEPT <one key fact, rule, formula, memory hook>
-@@FORMULA <LaTeX math — only if the topic requires a formula>
-@@QUESTION <full question text, including paper and year if known>
-@@QMARKS <marks for this question — whole number>
-@@SOURCE <paper / year / question number, e.g. 2024 Q2, or 'SYNTHESIZED'>
+@@TOPIC <topic title — highest-yield first>
+@@MARKS <marks this topic is worth, whole number>
+@@EVERY <true if this topic appears on every paper / is high ROI, otherwise false>
+@@RANK <ROI rank — 1 = most important>
+@@CONCEPT <one key fact, rule, formula or memory hook>
+@@CONCEPT <next key fact… repeat>
+@@FORMULA <LaTeX math — only if the topic requires one, otherwise omit>
+@@QUESTION <full question text — tag with year and paper if it's a PYQ, else 'SYNTHESIZED'>
+@@QMARKS <marks the question is worth, whole number>
+@@SOURCE <e.g. 2024 Q2, or 'SYNTHESIZED'>
 @@ANSWER <one paragraph of the model answer>
-@@STEP <one short solving step>
+@@STEP <one solving step>
 @@STEP <next solving step>
 @@CODE
-<code, trace or diagram lines>
-@@ENDCODE          ← only if the answer needs code, a trace, or a diagram
+<code / trace / diagram lines>
+@@ENDCODE          ← only if the answer needs code, a trace or a diagram
 @@ENDQ
 
 ## AFTER ALL TOPICS:
@@ -91,53 +70,28 @@ Rank | Topic | Marks | ROI
 @@PLAN_SCHEDULE
 Hours | Block | Marks target
 @@ENDPLAN_SCHEDULE
-@@CHECKLIST <final locked phase things to do>
+@@CHECKLIST <final locked phase>
 @@END
 
+GROUND RULES
+- ASCII only. Straight quotes. No smart quotes, curly apostrophes, emoji, BOM, or trailing content after @@END.
+- One marker per line. No hand-wrapping.
+- If a line of prose WOULD start with @@, add ONE leading space.
+- Do not translate, rename or reorder markers — the importer is exact (it parses on marker names).
+- Marks and ranks are whole numbers.
+- Repeat @@CONCEPT, @@ANSWER, @@STEP as many times as needed.
+- Each topic ends with @@ENDTOPIC.
+- The whole block ends with @@END. NOTHING after it.
+
 HOW TO USE @@EVERY
-- 2–4 per subject is realistic. Rankings/professor guidance / PYQ frequency are inputs.
-- Mark high-priority topics that recur every paper with @@EVERY true. Everything else @@EVERY false (or omitted).
-- If absent from the papers entirely, say so in @@DESC.
+- 2–4 per subject, realistic. The rankings I provide (or your own read of the PYQs) decide. True = appears every paper. Skip = omit.
 
 HOW TO USE @@FORMULA
-- Emit one @@FORMULA <latex> line per formula the topic requires (recurrence relations, hash functions, tree height, complexity results, trigonometric/physics formulas — anything you'd write on a formula sheet).
-- Use LaTeX math syntax: T(n) = 2T(n/2) + n ; x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a} ; h = \\log_2 n.
-- Keep each formula on ONE line. No display math, no surrounding $$ delimiters — the app renders every formula you list.
-- If the topic has no formula, omit @@FORMULA entirely. Do not include empty slots.
+- Emit one @@FORMULA <latex> line per real formula. Example: @@FORMULA T(n) = 2T(n/2) + n . h of n = \\log_2 n . \\frac{-b \\pm \\sqrt{b^2-4ac}}{2a} . \\alpha = \\frac{n}{m}
+- Keep each formula on ONE line. No $$ delimiters. No display math. If there is no formula, omit the line.
 - Do NOT put whole solution paragraphs here — only the formulas themselves.
 
-REPEAT RULES
-- Repeat @@CONCEPT for every key idea.
-- Repeat @@ANSWER for every paragraph.
-- Repeat @@STEP for every solving step.
-- Repeat @@QUESTION / @@ENDQ for every question.
-- Every topic needs at least one @@CONCEPT and one @@QUESTION.
-- Every question needs at least one @@ANSWER or @@STEP.
-- A topic block always ends with @@ENDTOPIC.
-- Only include the optional PLAN_* and CHECKLIST blocks if the material supports them.
-- The whole file ends with @@END.
-
-FORMAT AND ENCODING
-- ASCII only, straight quotes ( ' and " ), no smart quotes, no curly apostrophes, no emoji, no BOM.
-- One marker per line. No hand-wrapping.
-- If a normal prose line would start with @@, add one leading space.
-- Marks, ranks, totals all whole numbers.
-
-QUALITY CHECK BEFORE YOU FINISH
-- Every worked example / solution shows every step — no "similarly" or "obvious" shortcuts.
-- Every question is a PYQ or clearly labelled "SYNTHESIZED". If you synthesised it to test the student, say so.
-- No topic is systematically padded with filler; every line teaches.
-- The schedule matches my effective hours honestly — nothing you'd not actually do.
-- Nothing appears after @@END.
-
-TINY EXAMPLE
-@@STUDY_TRACKER v1
-@@SUBJECT Database Management Systems
-@@COURSE CS-201
-@@EXAM 50
-@@TARGET {{TARGET}}
-@@DESC Normalization and ER modelling.
-@@EXAMDATE {{EXAM_DATETIME}}
+WORKED EXAMPLE (stick to this pattern — do not improvise new structures)
 @@TOPIC Normalization
 @@MARKS 6
 @@RANK 1
@@ -150,7 +104,7 @@ TINY EXAMPLE
 @@QMARKS 6
 @@SOURCE 2024 Q2
 @@ANSWER 1NF splits repeating groups into separate rows.
-@@ANSWER 2NF removes attributes that depend on only part of a composite key.
+@@ANSWER 2NF removes attributes dependent on only part of a composite key.
 @@STEP Identify the primary key of the relation.
 @@STEP Check each non-key attribute for partial and transitive dependencies.
 @@CODE
@@ -159,10 +113,14 @@ STUDENT(id, name, course, course_name)
 @@ENDCODE
 @@ENDQ
 @@ENDTOPIC
-@@END
 
-IF YOU CANNOT PRODUCE A PDF
-- Output exactly the same text as a .txt or .md file instead. I can upload that.
+QUALITY CHECK BEFORE YOU FINISH
+- Every worked example shows EVERY step — no "similarly", no "obvious".
+- Every question is a PYQ or is clearly labelled SYNTHESIZED.
+- The schedule matches my effective hours honestly — nothing I couldn't actually do in that time.
+- Nothing appears after @@END.
+
+Your entire response = the STUDY_TRACKER block above, starting with @@STUDY_TRACKER v1 and ending with @@END. No prose. No prepending questions. No postscript. Stop at @@END.
 `;
 
 const ATTACHMENTS = [

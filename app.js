@@ -558,8 +558,8 @@
     if (!s) {
       v.innerHTML = `<section class="welcome">
         <div class="mark">SH</div>
-        <h2>Track any subject from one PDF</h2>
-        <p>Use the built-in prompt with Gemini, ChatGPT or any agent. It will ask for your exam date/time and effective hours, then return a structured study PDF covering everything in one go — upload it here and your notes, questions, answers and progress tracker are ready. Nothing leaves your browser.</p>
+        <h2>Track any subject, one file at a time</h2>
+        <p>Copy the built-in prompt ("Agent prompt"), open Gemini / Claude / ChatGPT, paste it, attach your syllabus + PYQs + notes, and save whatever it prints out as a <code>.txt</code> file. Drop that file here and your notes, questions, answers and progress tracker are ready. Files never leave this browser.</p>
         <div class="welcome-actions">
           <button class="btn btn-primary" id="welcomeAdd" type="button">Get the agent prompt →</button>
           <button class="btn btn-outline" id="welcomeSample" type="button">Load the quick tour sample</button>
@@ -676,7 +676,7 @@
       </section>
 
       ${hasPlan ? `<section class="plan-section">
-        <div class="section-head"><div><p class="eyebrow">From your PDF</p><h2>Study plan reference</h2></div></div>
+        <div class="section-head"><div><p class="eyebrow">Your study plan</p><h2>Plan reference</h2></div></div>
         <div class="plan-grid">
           ${plan.blueprint ? `<details class="panel" open><summary><span>Mark blueprint</span><span class="chev">⌄</span></summary><div class="panel-body">${tableFromRows(plan.blueprint)}</div></details>` : ''}
           ${plan.ranking ? `<details class="panel"><summary><span>Ranking by ROI</span><span class="chev">⌄</span></summary><div class="panel-body">${tableFromRows(plan.ranking)}</div></details>` : ''}
@@ -978,7 +978,7 @@
             </div>
             <div class="q-body">${questionHTML(q, s)}${rateRowHTML(s, q)}</div>
           </div>`;
-        }).join('') : '<p class="muted small">No questions yet. Add one or import a new PDF.</p>'}
+        }).join('') : '<p class="muted small">No questions yet. Add one, or upload a plan file (.txt/.md/.json/.pdf).</p>'}
       </div>`;
 
     const exitSelf = $('#exitSelfTest');
@@ -1255,12 +1255,15 @@
   }
   /* ---------------- parsing ---------------- */
   function normalizeText(raw) {
-    return String(raw || '')
+    let t = String(raw || '')
       .replace(/\r\n?/g, '\n')
       .replace(/\u00a0/g, ' ')
       .replace(/[\u2018\u2019]/g, "'")
       .replace(/[\u201c\u201d]/g, '"')
       .replace(/\u2013|\u2014/g, '-');
+    // Strip a single leading/trailing code fence (```lang\n … \n```) that agents love to add
+    t = t.replace(/^\s*```[^\n]*\n/, '').replace(/\n```\s*$/, '');
+    return t;
   }
 
   function parseAnyText(raw, fallbackName) {
@@ -1281,7 +1284,7 @@
     // simple heading fallback
     const h = parseHeuristic(text, fallbackName);
     if (h.topics.length) return h;
-    throw new Error('No structured data found. Upload a PDF made with the Study Hub prompt, or a JSON file.');
+    throw new Error('No structured data found in that file. Upload the plan your agent produced with the Study Hub prompt (.txt, .md, .json or .pdf).');
   }
 
   function parseMarkers(text) {
@@ -1581,7 +1584,7 @@
       })();
       const modeLabel = modeFor(answers.effectiveHours).label;
       openModal(`<h2>Your tailored prompt is ready</h2>
-        <p class="muted small">Paste it into Gemini, Claude, ChatGPT or any chat agent together with your syllabus, PYQs and notes. The agent will return one PDF in Study Hub's format. Your files never leave this browser.</p>
+        <p class="muted small">Paste it into Gemini, Claude, ChatGPT or any chat agent — with your syllabus, PYQs and notes in the same message. The agent will print out a marker block; copy it as-is or tell it to emit a file. All parsing is local.</p>
         <div class="preflight-strip" aria-label="Your parameters">
           <div><span class="ps-label">Exam</span><strong>${esc(dateLabel)}</strong></div>
           <div><span class="ps-label">Hours</span><strong>${esc(answers.effectiveHours)}</strong></div>
@@ -1601,7 +1604,7 @@
         </div>
         <div class="modal-actions">
           <button class="btn btn-outline" type="button" data-close>Cancel</button>
-          <button class="btn btn-primary" id="toUpload" type="button" ${full ? 'disabled' : ''}>Next: upload PDF →</button>
+          <button class="btn btn-primary" id="toUpload" type="button" ${full ? 'disabled' : ''}>Next: upload plan →</button>
         </div>`, { wide: true });
       $('#copyPrompt').addEventListener('click', () => copyText(promptText).then(() => toast('Prompt copied to clipboard')));
       $('#downloadPrompt').addEventListener('click', () => download('study-hub-agent-prompt.txt', promptText + '\n\nATTACH THESE:\n' + ATTACHMENTS.map(a => '- ' + a).join('\n')));
@@ -1611,8 +1614,9 @@
     }
 
     if (step === 3) {
-      openModal(`<h2>Upload your study PDF</h2>
-        <p class="muted small">Drop the PDF your agent produced. You can also upload a <code>.json</code>, <code>.md</code> or <code>.txt</code> file.</p>
+      openModal(`<h2>Upload your study plan</h2>
+        <p class="muted small">Drop the <code>.txt</code>, <code>.md</code> or <code>.json</code> your agent printed out — or a <code>.pdf</code> if you used one that can produce files. The harness parses all four, offline.</p>
+        <div class="banner banner-info" style="margin-top:10px"><strong>Copy-paste route (ChatGPT / Gemini free tier):</strong> if it printed the marker block inline in the chat, select everything from <code>@@STUDY_TRACKER</code> to <code>@@END</code>, paste into Notepad, save as <code>myplan.txt</code>, upload here.</div>
         ${stepsHtml}
         <div class="dropzone" id="dropzone" role="button" tabindex="0" aria-label="Upload a PDF, JSON, Markdown or text file">
           <div class="dz-icon">📄</div>
@@ -1749,8 +1753,8 @@
   function openHelp() {
     openModal(`<h2>How Study Hub works</h2>
       <ul>
-        <li><strong>Bring your own PDF.</strong> Copy the agent prompt ("Agent prompt" button) → paste into any LLM → it will ask for your exam date/time and effective hours → paste your syllabus + PYQs + notes → drop its PDF back in.</li>
-        <li><strong>Everything is local.</strong> PDF parsing and storage happen in this browser. No server, no uploads.</li>
+        <li><strong>Bring your own plan.</strong> Click “Agent prompt” → fill in your exam date/time, effective hours and target marks → paste the tailored prompt into any LLM (Gemini, Claude, ChatGPT, Llama) → attach your syllabus + PYQs + notes to the same message → save whatever it prints out as <code>.txt</code> → this app parses it offline.</li>
+        <li><strong>Everything is local.</strong> File parsing and storage happen in this browser. No server, no uploads.</li>
         <li><strong>Rate, don’t just tick.</strong> Every question gets “Got it / Fuzzy / Didn't get it”. Your predicted score is weighted by marks <em>and</em> confidence.</li>
         <li><strong>Spaced repetition.</strong> “Got it” schedules the question 1 → 3 → 7 → 15… days out; “Fuzzy” gets it back sooner; “Didn't get it” is due in 10 minutes. Tap <em>Reviews</em> to drill what’s due.</li>
         <li><strong>Formulas, hidden until you reveal.</strong> Topics with formulas show “Key formulas” in the drawer — tap to flip them as you study (blind recall). Reveal all / hide all available.</li>

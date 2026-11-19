@@ -1,12 +1,12 @@
 # Study Hub
 
-A general, offline study-progress tracker that turns a **study PDF from any AI agent** into
+A general, offline study-progress tracker that turns a **study plan from any AI agent** into
 topics, questions, answers, memory hooks, and a live progress + score prediction.
 
 **Live repo:** https://github.com/vishn0o/study-hub
 
 Everything runs in your browser. No server, no account, no uploads. Fonts are self-hosted,
-PDF parsing runs locally.
+PDF.js is vendored locally for PDF imports; text (.txt/.md/.json) imports are parsed directly.
 
 ---
 
@@ -14,9 +14,9 @@ PDF parsing runs locally.
 
 1. **Open `index.html`** (double-click it).
 2. In Study Hub click **Agent prompt**. The app asks for your **exam date & time**, **effective study hours** and **target marks**, and generates a tailored prompt. The app automatically picks a timing mode (CRASH / STANDARD / DEEP) based on your hours.
-3. Copy the prompt (or download it as `.txt`) and paste it into any trusted LLM — Gemini, Claude, ChatGPT, etc. Attach your syllabus + PYQs + notes.
-4. The LLM returns one PDF in Study Hub's import format.
-5. Drop the PDF into Study Hub via **+ Add subject → Next: upload PDF**, review the parsed counts, click **Import subject**.
+3. Copy the prompt (or download it as `.txt`) and paste it into any chat LLM — Gemini, Claude, ChatGPT. Attach your syllabus + PYQs + notes in the same message.
+4. The LLM prints one **marker block** (or, if it can, a `study_plan.txt/md/json` — whichever it gives you, grab it).
+5. Save it as a file and drop it into Study Hub via **+ Add subject → Next: upload plan**. The app parses it offline.
 6. Track progress, spaced-repetition reviews, formulas, exam countdown — everything is local; nothing ever leaves your machine.
 
 (A ready-to-fork, system-style prompt lives in `generate-study-plan-prompt.txt` — same structure, meant for versioned customisation. The in-app **Agent prompt** is the fastest path.)
@@ -52,8 +52,9 @@ You can keep up to **3 subjects**. Each has its own progress and review history.
 
 ## What the agent must produce
 
-The last part of the PDF must be a line-marker data block. The full spec is built into the
-in-app prompt, but the core markers are:
+The agent emits a line-marker data block — usually as inline plain text you save as
+`.txt` or `.md`, sometimes as JSON, occasionally as a PDF (if your model supports it).
+The app parses all four formats offline. The full spec is in the in-app prompt, but the core markers are:
 
 ```
 @@STUDY_TRACKER v1
@@ -105,8 +106,7 @@ Repeat `@@CONCEPT`, `@@ANSWER`, `@@STEP`, and whole `@@QUESTION … @@ENDQ` bloc
 - One marker per line; do not hand-wrap.
 - If a content line starts with `@@`, add one leading space.
 
-If the agent cannot output a PDF, a `.txt` or `.md` with the same block works too.
-A `.json` subject file is also accepted.
+If the agent prints the block inline, save it as `.txt` or `.md` — that's all the app needs. A `.json` subject file is also accepted.
 
 ### KaTeX
 
