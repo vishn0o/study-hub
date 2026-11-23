@@ -1,0 +1,29 @@
+name: sync sitemap
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 6 * * *' # daily at 06:00 UTC
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Regenerate sitemap.xml
+        run: node scripts/sync-github.mjs
+        env:
+          SITE_DOMAIN: ${{ vars.SITE_DOMAIN || 'https://YOURDOMAIN.github.io/study-hub/' }}
+      - name: Commit and push
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            git config user.name 'github-actions'
+            git config user.email 'actions@users.noreply.github.com'
+            git add sitemap.xml
+            git commit -m 'chore: refresh sitemap <lastmod>'
+            git push
+          fi

@@ -5,12 +5,54 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#10243a" />
   <meta name="description" content="Upload a study PDF from any AI agent and track topics, questions and your predicted score. All data stays in your browser." />
+  <link rel="preload" href="fonts/dm-sans-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <meta property="og:title" content="Study Hub — Progress &amp; Score Tracker" />
+  <meta property="og:description" content="Upload a study PDF from any AI agent and track topics, questions and your predicted score. All data stays in your browser." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://YOURDOMAIN.github.io/study-hub/" />
+  <meta property="og:site_name" content="Study Hub" />
+  <meta property="og:image" content="https://YOURDOMAIN.github.io/study-hub/social-preview.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Study Hub — Progress &amp; Score Tracker" />
+  <meta name="twitter:description" content="Upload a study PDF from any AI agent and track topics, questions and your predicted score. All data stays in your browser." />
+  <meta name="twitter:image" content="https://YOURDOMAIN.github.io/study-hub/social-preview.png" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
   <link rel="icon" type="image/svg+xml" href="icon.svg" />
   <title>Study Hub — Progress &amp; Score Tracker</title>
+  <link rel="canonical" href="https://YOURDOMAIN.github.io/study-hub/index.html" />
   <link rel="stylesheet" href="fonts.css" />
   <link rel="stylesheet" href="styles.css" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Person",
+        "name": "Study Hub",
+        "url": "https://YOURDOMAIN.github.io/study-hub/",
+        "description": "A study progress tracker: upload a study PDF from any AI agent and track topics, questions and your predicted score. All data stays in your browser."
+      },
+      {
+        "@type": "ProfilePage",
+        "name": "Study Hub",
+        "url": "https://YOURDOMAIN.github.io/study-hub/",
+        "about": "Study Hub is a study progress tracker, not a place to study from — it turns your syllabus, PYQs and notes into topics and questions, tracks your confidence and predicts your exam score.",
+        "inLanguage": "en"
+      },
+      {
+        "@type": "SoftwareSourceCode",
+        "name": "study-hub",
+        "url": "https://github.com/vishn0o/study-hub",
+        "codeRepository": "https://github.com/vishn0o/study-hub",
+        "description": "Offline study progress tracker — upload a study PDF from any AI agent, track topics, questions and predicted score, with spaced repetition and printable revision sheets.",
+        "license": "MIT",
+        "programmingLanguage": "JavaScript",
+        "isAccessibleForFree": true
+      }
+    ]
+  }
+  </script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
@@ -49,7 +91,7 @@
   </main>
 
   <footer class="footer">
-    <p><strong>Study Hub is a study progress tracker, not a place to study from.</strong> Bring your own notes and PYQs — this app tracks topics, questions and predicted scores. Your PDFs, progress and review history never leave this browser; use Export to keep a backup.</p>
+    <p><strong>Study Hub is a study progress tracker, not a place to study from</strong> — it tracks topics, questions and predicted scores. Your PDFs, progress and review history never leave this browser; use Export to keep a backup.</p>
   </footer>
 
   <!-- printable revision sheet (populated on demand, only visible in print) -->
@@ -93,8 +135,21 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+  <noscript>
+    <section class="welcome">
+      <h2>Study Hub — Progress &amp; Score Tracker</h2>
+      <p>Study Hub is a study progress tracker, not a place to study from — upload a study PDF from any AI agent and track topics, questions and your predicted score. All data stays in your browser.</p>
+      <a href="index.html" class="btn btn-teal">Open Study Hub</a>
+    </section>
+  </noscript>
   <script src="prompt.js"></script>
   <script src="sample.js"></script>
+  <script src="helpers.js"></script>
+  <script src="state.js"></script>
+  <script src="scoring.js"></script>
+  <script src="parse.js"></script>
+  <script src="render.js"></script>
+  <script src="wizard.js"></script>
   <script src="app.js"></script>
   <script>
     (function () {
