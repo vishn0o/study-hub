@@ -1953,10 +1953,10 @@
   }
 
   /* ---------------- import wizard ---------------- */
-  const wz = { step: 1, parsed: null, fileName: '', error: '', busy: false, answers: null };
+  const wz = { step: 1, parsed: null, fileName: '', error: '', busy: false, answers: null, promptKind: 'tracker' };
 
   function openWizard() {
-    wz.step = 1; wz.parsed = null; wz.fileName = ''; wz.error = ''; wz.busy = false; wz.answers = null;
+    wz.step = 1; wz.parsed = null; wz.fileName = ''; wz.error = ''; wz.busy = false; wz.answers = null; wz.promptKind = 'tracker';
     renderWizard();
   }
 
@@ -1997,6 +1997,13 @@
             <div class="field"><label for="pf-time">Exam time</label><input id="pf-time" name="examTime" type="time" value="09:00" autocomplete="off"></div>
             <div class="field"><label for="pf-hours">Effective hours</label><input id="pf-hours" name="hours" type="number" min="1" max="300" step="1" inputmode="numeric" autocomplete="off"></div>
             <div class="field"><label for="pf-target">Target marks</label><input id="pf-target" name="target" type="number" min="1" max="500" step="1" inputmode="numeric" value="30" autocomplete="off"></div>
+            <div class="field full">
+              <label>Choose a prompt</label>
+              <div class="quick-picks" id="promptChoice" role="group" aria-label="Choose a prompt">
+                ${PROMPT_KINDS.map(k => `<button type="button" class="qp-chip ${k.id === wz.promptKind ? 'is-active' : ''}" data-kind="${k.id}" title="${esc(k.hint)}">${esc(k.label)}</button>`).join('')}
+              </div>
+              <span class="hint" id="promptHint">${esc(PROMPT_KINDS.find(k => k.id === wz.promptKind).hint)}</span>
+            </div>
           </div>
           <p class="mode-hint" id="modeHint" aria-live="polite"></p>
           <p class="form-error" id="preflightError" role="alert" tabindex="-1"></p>
@@ -2018,6 +2025,11 @@
       }));
       // skip button: jump straight to upload step with no prompt
       $('#skipPreflight').addEventListener('click', () => { wz.answers = null; wz.step = 3; renderWizard(); });
+      document.querySelectorAll('#promptChoice .qp-chip').forEach(btn => btn.addEventListener('click', () => {
+        wz.promptKind = btn.dataset.kind;
+        document.querySelectorAll('#promptChoice .qp-chip').forEach(b => b.classList.toggle('is-active', b === btn));
+        $('#promptHint').textContent = PROMPT_KINDS.find(k => k.id === wz.promptKind).hint;
+      }));
       const hoursEl = document.querySelector('#pf-hours');
       const hintEl = document.querySelector('#modeHint');
       const updateHint = () => {
@@ -2049,14 +2061,18 @@
       const answers = wz.answers;
       if (!answers) { wz.step = 1; renderWizard(); return; }
       const full = state.subjects.length >= MAX_SUBJECTS;
-      const promptText = buildAgentPrompt(answers);
+      const promptText = buildPrompt(answers, wz.promptKind);
+      const kindLabel = PROMPT_KINDS.find(k => k.id === wz.promptKind).label;
       const dateLabel = (() => {
         try { const d = new Date(answers.examDate + ':00'); return d.toLocaleString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' }); }
         catch (e) { return answers.examDate; }
       })();
       const modeLabel = modeFor(answers.effectiveHours).label;
-      openModal(`<h2>Your tailored prompt is ready</h2>
-        <p class="muted small">Paste it into Gemini, Claude, ChatGPT or any chat agent — with your syllabus, PYQs and notes in the same message. The agent will print out a marker block; copy it as-is or tell it to emit a file. All parsing is local.</p>
+      openModal(`<h2>Your ${esc(kindLabel)} prompt is ready</h2>
+        <p class="muted small">Paste it into Gemini, Claude, ChatGPT or any chat agent — with your syllabus, PYQs and notes in the same message. Switch prompts below at any time, then copy or download it. All parsing is local.</p>
+        <div class="quick-picks" id="promptSwitch" role="group" aria-label="Switch prompt">
+          ${PROMPT_KINDS.map(k => `<button type="button" class="qp-chip ${k.id === wz.promptKind ? 'is-active' : ''}" data-kind="${k.id}" title="${esc(k.hint)}">${esc(k.label)}</button>`).join('')}
+        </div>
         <div class="preflight-strip" aria-label="Your parameters">
           <div><span class="ps-label">Exam</span><strong>${esc(dateLabel)}</strong></div>
           <div><span class="ps-label">Hours</span><strong>${esc(answers.effectiveHours)}</strong></div>
@@ -2078,6 +2094,11 @@
           <button class="btn btn-outline" type="button" data-close>Cancel</button>
           <button class="btn btn-primary" id="toUpload" type="button" ${full ? 'disabled' : ''}>Next: upload plan →</button>
         </div>`, { wide: true });
+      document.querySelectorAll('#promptSwitch .qp-chip').forEach(btn => btn.addEventListener('click', () => {
+        if (btn.dataset.kind === wz.promptKind) return;
+        wz.promptKind = btn.dataset.kind;
+        renderWizard();
+      }));
       $('#copyPrompt').addEventListener('click', () => copyText(promptText).then(() => toast('Prompt copied to clipboard')));
       $('#downloadPrompt').addEventListener('click', () => download('study-hub-agent-prompt.txt', promptText + '\n\nATTACH THESE:\n' + ATTACHMENTS.map(a => '- ' + a).join('\n')));
       $('#editPreflight').addEventListener('click', () => { wz.step = 1; renderWizard(); });

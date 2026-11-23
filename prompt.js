@@ -123,6 +123,50 @@ QUALITY CHECK BEFORE YOU FINISH
 Your entire response = the STUDY_TRACKER block above, starting with @@STUDY_TRACKER v1 and ending with @@END. No prose. No prepending questions. No postscript. Stop at @@END.
 `;
 
+/* Second option: a teach-first study guide. Unlike the marker prompt this one
+   produces a human-readable document, which the generic importer in app.js
+   reads (Topic headings, practice questions, model answers, ranking table). */
+const TEACH_GUIDE_PROMPT_TEMPLATE = `You are my tutor and exam strategist. Using ONLY the syllabus, previous-year question papers (PYQs) and notes I attach, build a complete teach-first study guide to reach my target of {{TARGET}} marks. Do not ask me questions — infer everything from the attachments and the context below.
+
+MY EXAM CONTEXT
+- Exam in: {{EXAM_HOURS}} hours from now ({{EXAM_DATETIME}}).
+- Effective study hours available: {{STUDY_HOURS}}.
+- Target: {{TARGET}} marks.
+- Subject, course code and total marks: infer from the attachments.
+
+HOW TO WORK
+1. Read the question papers first. Extract topic-wise marks, recurring questions and difficulty. Rank topics by weightage (highest first) and teach in that order, not necessarily syllabus order.
+2. Build an hour-by-hour plan that fits {{STUDY_HOURS}} effective hours inside the {{EXAM_HOURS}} hours remaining, with revision, mock and sleep buffers.
+
+FOR EACH TOPIC (highest weightage first)
+1. Teach it from first principles: definitions, key facts, formulas and the exact question styles the paper asks. Worked examples must come from my material.
+2. Give 5 practice questions with full step-by-step model answers. Include real PYQs (label year/paper) and close variants; label any synthesized ones.
+3. Give 3 separate theory/concept questions with clear step-by-step answers and explanations.
+4. Use illustrations, labelled diagrams and figures wherever helpful in both questions and answers. Generate an image when text alone is not enough, and always add a short caption so the figure survives text extraction.
+
+OUTPUT
+- One self-contained document (PDF if you can, otherwise Markdown/text) my study app can import. Use clear headings:
+    Topic N: <title> (Unit ... — N marks)
+    Practice Qn [<n> marks] [PYQ: ... or SYNTHESIZED]
+    Model Answer:
+    Worked steps: 1. ... 2. ...
+- End with a "Final lesson plan importance ranking" table:
+    Rank | Topic | Unit | Avg. marks | Why it matters
+- Also include a schedule table: Hours | Block / Activity | Marks target.
+- Everything must be traceable to my attachments; never invent marks, questions or facts. No prose before or after the document.
+
+QUALITY CHECK
+- Highest-weightage topic first; marks match the papers.
+- Every question has a complete worked solution.
+- Figures have captions; the text still makes sense without the image.
+- The plan fits {{STUDY_HOURS}} hours.
+`;
+
+const PROMPT_KINDS = [
+  { id: 'tracker', label: 'Plan + tracker', hint: 'Compact marker block my app imports directly.' },
+  { id: 'teach', label: 'Study & teach guide', hint: 'Teach-first guide with practice questions, figures and ranking.' },
+];
+
 const ATTACHMENTS = [
   'Syllabus / unit list (defines the topics)',
   'Previous-year question papers (the questions) — with marks if available',
@@ -162,4 +206,21 @@ function buildAgentPrompt(answers) {
     .replace(/{{MODE}}/g, mode);
 }
 
-const PROMPT_CAPTION = 'Paste this into any chat LLM (Claude, Gemini, ChatGPT…) together with your syllabus, PYQs and notes. The agent will ask you a couple of quick questions first — answer, then it returns one PDF in the correct format.';
+function buildTeachGuidePrompt(answers) {
+  const examDate = normalizeDateTimeLocal(answers.examDate);
+  const effectiveHours = Math.max(1, Math.min(300, Math.round(Number(answers.effectiveHours) || 10)));
+  const target = Math.max(1, Math.min(200, Math.round(Number(answers.target) || 30)));
+  const examTime = new Date(examDate).getTime();
+  const examHours = Number.isFinite(examTime) ? Math.max(0, Math.round((examTime - Date.now()) / 3600000)) : effectiveHours;
+  return TEACH_GUIDE_PROMPT_TEMPLATE
+    .replace(/{{EXAM_HOURS}}/g, String(examHours))
+    .replace(/{{EXAM_DATETIME}}/g, examDate)
+    .replace(/{{STUDY_HOURS}}/g, String(effectiveHours))
+    .replace(/{{TARGET}}/g, String(target));
+}
+
+function buildPrompt(answers, kind) {
+  return kind === 'teach' ? buildTeachGuidePrompt(answers) : buildAgentPrompt(answers);
+}
+
+const PROMPT_CAPTION = 'Paste this into any chat LLM (Claude, Gemini, ChatGPT…) together with your syllabus, PYQs and notes. Choose the compact tracker block or the full study-and-teach guide; the app can import both.';

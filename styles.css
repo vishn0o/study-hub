@@ -251,6 +251,7 @@ h3 { font-weight: 800; }
 .quick-picks { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0 12px; }
 .qp-chip { border: 1px solid var(--line); background: var(--surface-3); color: var(--heading); padding: 6px 12px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: .02em; transition: border-color .2s, background .2s, color .2s; }
 .qp-chip:hover { border-color: var(--teal); background: var(--teal-soft); color: var(--teal-strong); }
+.qp-chip.is-active { border-color: var(--teal); background: var(--teal); color: #fff; }
 .qp-chip:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; }
 .skip-preflight { display: block; width: 100%; text-align: center; margin-top: 14px; padding: 12px; border: 0; border-radius: 10px; background: transparent; color: var(--muted); text-decoration: underline; text-underline-offset: 3px; font-size: 12.5px; font-weight: 600; }
 .skip-preflight:hover { color: var(--teal-strong); background: var(--surface-2); text-decoration: none; }
