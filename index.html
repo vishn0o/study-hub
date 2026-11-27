@@ -2,25 +2,25 @@
 <html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#10243a" />
-  <meta name="description" content="Upload a study PDF from any AI agent and track topics, questions and your predicted score. All data stays in your browser." />
+  <meta name="description" content="Turn any AI agent's study plan into topics, questions and a predicted exam score. Self-test, spaced repetition and print sheets — all offline in your browser." />
   <link rel="preload" href="fonts/dm-sans-latin.woff2" as="font" type="font/woff2" crossorigin />
   <meta property="og:title" content="Study Hub — Progress &amp; Score Tracker" />
-  <meta property="og:description" content="Upload a study PDF from any AI agent and track topics, questions and your predicted score. All data stays in your browser." />
+  <meta property="og:description" content="Turn any AI agent's study plan into topics, questions and a predicted exam score. Self-test, spaced repetition and print sheets — all offline in your browser." />
   <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://YOURDOMAIN.github.io/study-hub/" />
+  <meta property="og:url" content="https://vishn0o.github.io/study-hub/" />
   <meta property="og:site_name" content="Study Hub" />
-  <meta property="og:image" content="https://YOURDOMAIN.github.io/study-hub/social-preview.png" />
+  <meta property="og:image" content="https://vishn0o.github.io/study-hub/social-preview.png" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Study Hub — Progress &amp; Score Tracker" />
-  <meta name="twitter:description" content="Upload a study PDF from any AI agent and track topics, questions and your predicted score. All data stays in your browser." />
-  <meta name="twitter:image" content="https://YOURDOMAIN.github.io/study-hub/social-preview.png" />
+  <meta name="twitter:description" content="Turn any AI agent's study plan into topics, questions and a predicted exam score. Self-test, spaced repetition and print sheets — all offline in your browser." />
+  <meta name="twitter:image" content="https://vishn0o.github.io/study-hub/social-preview.png" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
   <link rel="icon" type="image/svg+xml" href="icon.svg" />
   <title>Study Hub — Progress &amp; Score Tracker</title>
-  <link rel="canonical" href="https://YOURDOMAIN.github.io/study-hub/index.html" />
+  <link rel="canonical" href="https://vishn0o.github.io/study-hub/" />
   <link rel="stylesheet" href="fonts.css" />
   <link rel="stylesheet" href="styles.css" />
   <script type="application/ld+json">
@@ -28,25 +28,21 @@
     "@context": "https://schema.org",
     "@graph": [
       {
-        "@type": "Person",
+        "@type": "WebSite",
         "name": "Study Hub",
-        "url": "https://YOURDOMAIN.github.io/study-hub/",
-        "description": "A study progress tracker: upload a study PDF from any AI agent and track topics, questions and your predicted score. All data stays in your browser."
-      },
-      {
-        "@type": "ProfilePage",
-        "name": "Study Hub",
-        "url": "https://YOURDOMAIN.github.io/study-hub/",
-        "about": "Study Hub is a study progress tracker, not a place to study from — it turns your syllabus, PYQs and notes into topics and questions, tracks your confidence and predicts your exam score.",
+        "url": "https://vishn0o.github.io/study-hub/",
+        "description": "A study progress tracker, not a place to study from — it turns a study plan from any AI agent into topics and questions, tracks confidence and predicts an exam score.",
         "inLanguage": "en"
       },
       {
-        "@type": "SoftwareSourceCode",
-        "name": "study-hub",
-        "url": "https://github.com/vishn0o/study-hub",
+        "@type": "SoftwareApplication",
+        "name": "Study Hub",
+        "applicationCategory": "EducationalApplication",
+        "operatingSystem": "Any modern web browser",
+        "url": "https://vishn0o.github.io/study-hub/",
         "codeRepository": "https://github.com/vishn0o/study-hub",
-        "description": "Offline study progress tracker — upload a study PDF from any AI agent, track topics, questions and predicted score, with spaced repetition and printable revision sheets.",
-        "license": "MIT",
+        "description": "Offline study progress tracker — turn an AI-generated study plan into topics, questions and a predicted score, with spaced repetition and printable revision sheets.",
+        "license": "https://opensource.org/licenses/MIT",
         "programmingLanguage": "JavaScript",
         "isAccessibleForFree": true
       }
@@ -60,7 +56,7 @@
   <header class="topbar">
     <nav class="topbar-inner" aria-label="Study Hub navigation">
       <div class="brand">
-        <img class="brand-mark" src="icon.svg" alt="Study Hub" width="44" height="44" aria-hidden="true" />
+        <img class="brand-mark" src="icon.svg" alt="" width="44" height="44" aria-hidden="true" />
         <div class="brand-text">
           <h1>Study Hub</h1>
           <p>Upload a study PDF · track progress · predict your score</p>
@@ -77,11 +73,14 @@
         <button class="btn btn-ghost icon-btn-toggle" id="themeBtn" type="button" aria-pressed="false" title="Theme: light — click to change" aria-label="Toggle colour theme">
           <span class="theme-icon" id="themeIcon" aria-hidden="true"></span>
         </button>
-        <button class="btn btn-ghost" id="guideBtn" type="button">Agent prompt</button>
-        <button class="btn btn-ghost" id="subjectsBtn" type="button">Manage</button>
-        <button class="btn btn-ghost" id="exportBtn" type="button">Export</button>
-        <button class="btn btn-ghost" id="importBackupBtn" type="button">Restore</button>
+        <div class="topbar-more" id="topbarMore">
+          <button class="btn btn-ghost" id="guideBtn" type="button">Agent prompt</button>
+          <button class="btn btn-ghost" id="subjectsBtn" type="button">Manage</button>
+          <button class="btn btn-ghost" id="exportBtn" type="button">Export</button>
+          <button class="btn btn-ghost" id="importBackupBtn" type="button">Restore</button>
+        </div>
         <button class="btn btn-ghost" id="helpBtn" type="button">Help</button>
+        <button class="btn btn-ghost icon-btn-toggle topbar-more-btn" id="moreBtn" type="button" aria-expanded="false" aria-controls="topbarMore" aria-label="More actions">⋯</button>
       </div>
     </nav>
   </header>

@@ -51,12 +51,29 @@ const num = (v, d) => {
 };
 
 let toastTimer;
-function toast(msg) {
+function toast(msg, opts) {
   const el = $('#toast');
-  el.textContent = msg;
+  opts = opts || {};
+  const error = opts.error || /^(cannot|could not|failed|error|invalid)/i.test(msg);
+  el.textContent = '';
+  el.appendChild(document.createTextNode(msg));
+  el.setAttribute('role', error ? 'alert' : 'status');
+  el.setAttribute('aria-live', error ? 'assertive' : 'polite');
+  if (opts.undo) {
+    const undo = document.createElement('button');
+    undo.type = 'button';
+    undo.className = 'toast-undo';
+    undo.textContent = 'Undo';
+    undo.addEventListener('click', () => {
+      clearTimeout(toastTimer);
+      el.classList.remove('show');
+      opts.undo();
+    });
+    el.appendChild(undo);
+  }
   el.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('show'), 2400);
+  toastTimer = setTimeout(() => el.classList.remove('show'), opts.undo ? 8000 : 2400);
 }
 
 function download(filename, text, mime) {

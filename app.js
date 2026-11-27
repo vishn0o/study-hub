@@ -62,7 +62,25 @@ document.addEventListener('keydown', e => {
     const dialog = activeDialog();
     if (dialog === $('#modal')) closeModal();
     else if (dialog === $('#drawer')) closeDrawer();
+    else closeMore();
   }
+});
+
+/* compact topbar menu (mobile) */
+const moreBtn = $('#moreBtn');
+const moreMenu = $('#topbarMore');
+function closeMore() {
+  moreMenu.classList.remove('is-open');
+  moreBtn.setAttribute('aria-expanded', 'false');
+}
+moreBtn.addEventListener('click', () => {
+  const open = moreMenu.classList.toggle('is-open');
+  moreBtn.setAttribute('aria-expanded', String(open));
+});
+document.addEventListener('click', e => {
+  if (!moreMenu.classList.contains('is-open')) return;
+  if (e.target.closest('#moreBtn')) return;
+  if (e.target.closest('#topbarMore button') || !e.target.closest('#topbarMore')) closeMore();
 });
 
 /* topbar */
@@ -102,6 +120,10 @@ $('#drawerToggle').addEventListener('click', () => {
 
 // keep multiple tabs in sync instead of overwriting newer data
 window.addEventListener('storage', e => {
+  if (e.key === PREFS_KEY) {
+    try { prefs = loadPrefs(); applyPrefs(); refresh(); } catch (err) { /* ignore */ }
+    return;
+  }
   if (e.key !== LS_KEY || !e.newValue) return;
   try {
     const s = JSON.parse(e.newValue);

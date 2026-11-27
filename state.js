@@ -47,6 +47,7 @@ const THEME_ICONS = {
   amoled: '<svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="9.05"/></svg>',
 };
 const THEME_LABEL = { light: 'Light', dark: 'Dark', amoled: 'AMOLED' };
+const THEME_META = { light: '#10243a', dark: '#0b1521', amoled: '#000000' };
 function loadPrefs() {
   try {
     const p = JSON.parse(localStorage.getItem(PREFS_KEY) || '{}');
@@ -66,6 +67,8 @@ function savePrefs() {
 }
 function applyPrefs() {
   document.documentElement.dataset.theme = prefs.theme;
+  const themeMeta = $('meta[name="theme-color"]');
+  if (themeMeta) themeMeta.setAttribute('content', THEME_META[prefs.theme] || THEME_META.light);
   const tb = $('#themeBtn');
   if (tb) {
     $('#themeIcon').innerHTML = THEME_ICONS[prefs.theme];

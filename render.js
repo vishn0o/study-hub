@@ -3,6 +3,7 @@
 
 /* ---------------- render: shell ---------------- */
 const viewState = { query: '', filter: 'all', sort: 'roi', mode: 'tracker' };
+const openQuestions = new Set();
 let drawerTopicId = null;
 let currentFocusQ = null;
 
@@ -32,13 +33,16 @@ function startCountdown(s) {
   if (!target) return;
   const pad = (n) => String(n).padStart(2, '0');
   const tick = () => {
-    const h = $('#cdH'), m = $('#cdM'), sec = $('#cdS');
-    if (!h || !m || !sec) { stopCountdown(); return; }
+    const d = $('#cdD'), h = $('#cdH'), m = $('#cdM'), sec = $('#cdS');
+    if (!d && !h && !m && !sec) { stopCountdown(); return; }
     const diff = target.getTime() - Date.now();
-    if (diff <= 0) { h.textContent = '00'; m.textContent = '00'; sec.textContent = '00'; stopCountdown(); return; }
-    h.textContent = pad(Math.floor(diff / 3600000));
-    m.textContent = pad(Math.floor((diff % 3600000) / 60000));
-    sec.textContent = pad(Math.floor((diff % 60000) / 1000));
+    if (diff <= 0) { [d, h, m, sec].forEach(x => { if (x) x.textContent = '00'; }); stopCountdown(); return; }
+    if (d) {
+      d.textContent = String(Math.floor(diff / 86400000));
+      if (h) h.textContent = pad(Math.floor((diff % 86400000) / 3600000));
+    } else if (h) h.textContent = pad(Math.floor(diff / 3600000));
+    if (m) m.textContent = pad(Math.floor((diff % 3600000) / 60000));
+    if (sec) sec.textContent = pad(Math.floor((diff % 60000) / 1000));
   };
   tick();
   countdownTimer = setInterval(tick, 1000);
@@ -116,21 +120,24 @@ function examStrip(s, st) {
       <div class="summary-cell" style="border-left: 0">
         <span class="summary-label">Done</span>
         <div class="summary-peer"><strong>✓</strong></div>
-        <span class="summary-sub">${esc(fmtDate(s.examDate))} has passed — archive quest complete.</span>
+        <span class="summary-sub">${esc(fmtDate(s.examDate))} has passed. Your ratings are still here.</span>
       </div>
     </section>`;
   }
   const perDay = remaining === 0 ? 0 : Math.ceil(remaining / Math.max(1, days));
   const pace = remaining === 0 ? 'All questions mastered' : (days === 0 ? 'Exam is today' : `≈${perDay} question${perDay === 1 ? '' : 's'} a day to finish`);
-  return `<section class="summary-strip${days <= 7 ? ' danger' : ''}" role="region" aria-label="Exam summary">
+  const examAt = parseExamDate(s.examDate);
+  const msLeft = examAt ? examAt.getTime() - Date.now() : 0;
+  const urgent = msLeft <= 48 * 3600000;
+  const cdBoxes = urgent
+    ? `<div class="cd-box"><strong id="cdH">00</strong><span>Hours</span></div><div class="cd-box"><strong id="cdM">00</strong><span>Min</span></div><div class="cd-box"><strong id="cdS">00</strong><span>Sec</span></div>`
+    : `<div class="cd-box"><strong id="cdD">0</strong><span>Days</span></div><div class="cd-box"><strong id="cdH">00</strong><span>Hours</span></div>`;
+  return `<section class="summary-strip${urgent ? ' danger' : ''}" role="region" aria-label="Exam summary">
     <div class="summary-cell">
       <span class="summary-label">Exam in</span>
-      <div class="cd-boxes" role="timer" aria-label="Time remaining until the exam">
-        <div class="cd-box"><strong id="cdH">00</strong><span>Hours</span></div>
-        <div class="cd-box"><strong id="cdM">00</strong><span>Min</span></div>
-        <div class="cd-box"><strong id="cdS">00</strong><span>Sec</span></div>
-      </div>
+      <div class="cd-boxes" role="timer" aria-label="Time remaining until the exam">${cdBoxes}</div>
       <span class="summary-sub">${esc(fmtDate(s.examDate))} · ${esc(pace)}</span>
+      <span class="summary-calm">Pace is a plan, not a deadline.</span>
     </div>
     <div class="summary-cell">
       <span class="summary-label">Questions left</span>
@@ -146,7 +153,7 @@ function renderSubject() {
   const s = active();
   if (!s) {
     v.innerHTML = `<section class="welcome">
-      <img class="mark" src="icon.svg" alt="Study Hub" aria-hidden="true" width="72" height="72">
+      <img class="mark" src="icon.svg" alt="" aria-hidden="true" width="72" height="72">
       <h2>Track any subject, one file at a time</h2>
       <p><strong>This is a study progress tracker, not a place to study from.</strong> Learn from your own notes, slides and PYQs — Study Hub turns them into topics and questions, then tracks how confident you are and predicts your score.</p>
       <p>Copy the built-in prompt ("Agent prompt"), open Gemini / Claude / ChatGPT, paste it, attach your syllabus + PYQs + notes, and save whatever it prints out as a <code>.txt</code> file. Drop that file here and your tracker is ready. Files never leave this browser.</p>
@@ -168,24 +175,28 @@ function renderSubject() {
   const plan = s.plan || {};
   const hasPlan = ['blueprint', 'ranking', 'schedule', 'checklist'].some(k => plan[k] && (Array.isArray(plan[k]) ? plan[k].length : true));
   const due = countDue(s);
+  const noRatings = st.qDone === 0;
+  const scorePill = noRatings
+    ? '<span class="pill">Not rated yet</span>'
+    : `<span class="pill ${st.score >= s.target ? 'pill-green' : (st.score >= s.target / 2 ? 'pill-teal' : 'pill-orange')}">${st.score >= s.target ? 'Goal reached' : (st.score >= s.target / 2 ? 'Within reach' : 'Short of goal')}</span>`;
+  const goalPill = noRatings
+    ? '<span class="pill">Not started</span>'
+    : `<span class="pill ${remaining === 0 ? 'pill-green' : 'pill-orange'}">${remaining === 0 ? 'Secured' : 'In progress'}</span>`;
+  const goalText = noRatings
+    ? `Target ${s.target} marks`
+    : (remaining === 0 ? `${s.target}-mark target LOCKED ✓` : `${remaining} mark${remaining === 1 ? '' : 's'} to go`);
 
   v.innerHTML = `
     <section class="subject-head">
       <div>
-        <p class="eyebrow">${s.code ? esc(s.code) + ' · ' : ''}Tracker · ${s.topics.length} topics · ${st.qTotal} questions${due ? ` · ${due} due for review` : ''}</p>
+        <p class="sub">${s.code ? esc(s.code) + ' · ' : ''}${s.topics.length} topics · ${st.qTotal} questions${due ? ` · ${due} due for review` : ''}</p>
         <h2>${esc(s.name)}</h2>
         ${s.description ? `<div class="sub">${esc(s.description)}</div>` : ''}
-        <div class="chip-row">
-          <span class="chip">Exam total: ${s.examTotal}</span>
-          <span class="chip">Target: ${s.target}</span>
-          ${s.examDate ? `<span class="chip chip-accent">Exam ${esc(fmtDate(s.examDate))}</span>` : ''}
-        </div>
       </div>
       <div class="head-actions">
         <button class="btn btn-outline" id="editSubjectBtn" type="button">✎ Edit subject</button>
         <button class="btn btn-outline" id="addTopicBtn" type="button">+ Add topic</button>
         <button class="btn btn-outline" id="progressBtn" type="button" title="Open your score-over-time chart">Progress</button>
-        <button class="btn btn-outline" id="printSheetBtn" type="button">⎙ Print sheet</button>
       </div>
     </section>
 
@@ -198,21 +209,21 @@ function renderSubject() {
           <div class="ring-label"><strong>Overall progress</strong><span class="muted">${st.qDone} of ${st.qTotal} questions rated</span></div>
         </div>
         <div class="card">
-          <div class="score-top"><span class="card-label">Predicted score</span><span class="pill ${st.score >= s.target ? 'pill-green' : (st.score >= s.target / 2 ? 'pill-teal' : 'pill-orange')}">${st.score >= s.target ? 'Goal reached' : (st.score >= s.target / 2 ? 'Within reach' : 'Short of goal')}</span></div>
+          <div class="score-top"><span class="card-label">Predicted score</span>${scorePill}</div>
           <div class="score-main"><span class="score-num">${st.score}</span><span class="score-den">/ ${s.examTotal}</span></div>
-          <div class="meter"><div class="meter-fill meter-score" style="width:${s.examTotal ? (st.score / s.examTotal * 100) : 0}%"></div></div>
-          <p class="muted small">Weighted by each topic's marks and your confidence (Got it = full, Fuzzy = half).</p>
+          <div class="meter" role="progressbar" aria-label="Predicted score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(s.examTotal ? (st.score / s.examTotal * 100) : 0)}"><div class="meter-fill meter-score" style="width:${s.examTotal ? (st.score / s.examTotal * 100) : 0}%"></div></div>
+          <p class="muted small">${noRatings ? 'Zero just means nothing has been rated yet. Rate a question to get a prediction.' : "Weighted by each topic's marks and your confidence (Got it = full, Fuzzy = half)."}</p>
         </div>
         <div class="card">
-          <div class="score-top"><span class="card-label">Target of ${s.target}</span><span class="pill ${remaining === 0 ? 'pill-green' : 'pill-orange'}">${remaining === 0 ? 'Secured' : 'In progress'}</span></div>
-          <div class="goal-big" style="color:${remaining === 0 ? 'var(--green)' : 'var(--orange)'}">${remaining === 0 ? `${s.target}-mark target LOCKED ✓` : `${remaining} mark${remaining === 1 ? '' : 's'} to go`}</div>
-          <div class="meter"><div class="meter-fill meter-goal" style="width:${Math.min(100, st.score / Math.max(1, s.target) * 100)}%"></div></div>
-          <p class="muted small">${remaining === 0 ? 'Your predicted score clears the target.' : `Reach rank #1: ${(s.topics.slice().sort((a, b) => a.rank - b.rank)[0] || { title: '' }).title}`}</p>
+          <div class="score-top"><span class="card-label">Target of ${s.target}</span>${goalPill}</div>
+          <div class="goal-big" style="color:${remaining === 0 ? 'var(--green)' : (noRatings ? 'var(--muted)' : 'var(--orange)')}">${goalText}</div>
+          <div class="meter" role="progressbar" aria-label="Progress to target" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(Math.min(100, st.score / Math.max(1, s.target) * 100))}"><div class="meter-fill meter-goal" style="width:${Math.min(100, st.score / Math.max(1, s.target) * 100)}%"></div></div>
+          <p class="muted small">${noRatings ? 'Rate a question to see how close you are.' : (remaining === 0 ? 'Your predicted score clears the target.' : `Reach rank #1: ${(s.topics.slice().sort((a, b) => a.rank - b.rank)[0] || { title: '' }).title}`)}</p>
         </div>
         <div class="card">
           <span class="card-label">Topics completed</span>
           <div class="stat-num">${st.topicsDone} <span>/ ${s.topics.length}</span></div>
-          <div class="meter"><div class="meter-fill meter-topics" style="width:${s.topics.length ? (st.topicsDone / s.topics.length * 100) : 0}%"></div></div>
+          <div class="meter" role="progressbar" aria-label="Topics completed" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(s.topics.length ? (st.topicsDone / s.topics.length * 100) : 0)}"><div class="meter-fill meter-topics" style="width:${s.topics.length ? (st.topicsDone / s.topics.length * 100) : 0}%"></div></div>
           <p class="muted small">Mark a topic complete, or rate all its questions.</p>
         </div>
       </div>
@@ -220,7 +231,7 @@ function renderSubject() {
 
     <section class="topics-section">
       <div class="section-head">
-        <div><p class="eyebrow">${s.topics.length} topics · ${st.qTotal} questions${due ? ` · <strong style="color:var(--red)">${due} due for review</strong>` : ''}</p><h2>Topics</h2></div>
+        <div><p class="sub">${s.topics.length} topics · ${st.qTotal} questions${due ? ` · <strong style="color:var(--red)">${due} due for review</strong>` : ''}</p><h2>Topics</h2></div>
         <div class="controls">
           <div class="search-wrap">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 21l-4.3-4.3M11 19a8 8 0 110-16 8 8 0 010 16z"/></svg>
@@ -247,7 +258,7 @@ function renderSubject() {
     </section>
 
     <section class="actions-section">
-      <div class="section-head"><div><p class="eyebrow">Your study day</p><h2>Study tools</h2></div></div>
+      <div class="section-head"><div><h2>Study tools</h2></div></div>
       <div class="action-grid">
         <button class="action-card ${prefs.selfTest ? 'is-on' : ''}" id="selfTestBtn" type="button" aria-pressed="${prefs.selfTest ? 'true' : 'false'}" data-accent="orange">
           <span class="a-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M17.94 17.94A10.9 10.9 0 0 1 12 19c-5 0-9.27-3-12-7a12.5 12.5 0 0 1 2.24-3.2M6.2 6.2l11.6 11.6M9.9 4.24A10.6 10.6 0 0 1 12 4c5 0 9.27 3 12 7a12.6 12.6 0 0 1-2.7 3.57M14.12 14.12A3 3 0 1 1 9.88 9.88"/></svg></span>
@@ -265,7 +276,7 @@ function renderSubject() {
     </section>
 
     ${hasPlan ? `<section class="plan-section">
-      <div class="section-head"><div><p class="eyebrow">Your study plan</p><h2>Plan reference</h2></div></div>
+      <div class="section-head"><div><h2>Plan reference</h2></div></div>
       <div class="plan-grid">
         ${plan.blueprint ? `<details class="panel" open><summary><span>Mark blueprint</span><span class="chev">⌄</span></summary><div class="panel-body">${tableFromRows(plan.blueprint)}</div></details>` : ''}
         ${plan.ranking ? `<details class="panel"><summary><span>Ranking by ROI</span><span class="chev">⌄</span></summary><div class="panel-body">${tableFromRows(plan.ranking)}</div></details>` : ''}
@@ -303,7 +314,7 @@ function renderTopicGrid() {
       </div>
       <div>
         <div class="topic-progress-row"><span>Questions rated</span><strong>${st.effDone}/${st.total}</strong></div>
-        <div class="meter"><div class="meter-fill" style="width:${st.frac * 100}%;background:${st.full ? 'var(--green)' : 'linear-gradient(90deg,var(--teal),#2bb9a8)'}"></div></div>
+        <div class="meter" role="progressbar" aria-label="${esc(t.title)} progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(st.frac * 100)}"><div class="meter-fill" style="width:${st.frac * 100}%;background:${st.full ? 'var(--green)' : 'linear-gradient(90deg,var(--teal),var(--teal-end))'}"></div></div>
       </div>
       <div class="topic-card-actions">
         <button class="btn ${explicit ? 'btn-done' : 'btn-outline'} js-toggle-topic" data-topic="${esc(t.id)}" type="button">${explicit ? '✓ Completed' : 'Mark complete'}</button>
@@ -332,7 +343,6 @@ function bindSubjectEvents(s) {
     if (viewState.mode !== 'progress') closeDrawer();
     refresh();
   });
-  const pr = $('#printSheetBtn'); if (pr) pr.addEventListener('click', () => printRevisionSheet());
   const sd = $('#setExamDate'); if (sd) sd.addEventListener('click', () => openSubjectEditor());
   const wa = $('#welcomeAdd'); if (wa) wa.addEventListener('click', openWizard);
   const ws = $('#welcomeSample'); if (ws) ws.addEventListener('click', addSample);
@@ -369,7 +379,7 @@ function renderProgressPage(v, s) {
   v.innerHTML = `
     <section class="subject-head">
       <div>
-        <p class="eyebrow">${s.code ? esc(s.code) + ' · ' : ''}Progress</p>
+        <p class="sub">${s.code ? esc(s.code) + ' · ' : ''}Progress</p>
         <h2>How your score moved</h2>
         <div class="sub">Every rating you add is recorded — the line turns into your study journey.</div>
         <div class="chip-row">
@@ -477,16 +487,28 @@ function activeDialog() {
   if (!$('#drawerOverlay').hidden && !$('#drawer').hidden) return $('#drawer');
   return null;
 }
+/* Keep the page behind a dialog out of the tab order and virtual cursor. */
+function syncInert() {
+  const open = !$('#modalOverlay').hidden || !$('#drawerOverlay').hidden;
+  ['header.topbar', '#main', 'footer.footer'].forEach(sel => {
+    const el = $(sel);
+    if (!el) return;
+    if (open) el.setAttribute('inert', '');
+    else el.removeAttribute('inert');
+  });
+}
 
 /* ---------------- drawer ---------------- */
 function openDrawer(tid, focusQ) {
   const s = active(); if (!s) return;
   const t = s.topics.find(x => x.id === tid); if (!t) return;
+  if (drawerTopicId !== tid) openQuestions.clear();
   drawerTopicId = tid;
   currentFocusQ = focusQ || null;
   rememberFocus();
   $('#drawerOverlay').hidden = false;
   $('#drawer').hidden = false;
+  syncInert();
   if (!$('#drawer').hasAttribute('tabindex')) $('#drawer').setAttribute('tabindex', '-1');
   document.body.style.overflow = 'hidden';
   renderDrawer();
@@ -495,9 +517,11 @@ function openDrawer(tid, focusQ) {
 function closeDrawer() {
   $('#drawerOverlay').hidden = true;
   $('#drawer').hidden = true;
+  syncInert();
   document.body.style.overflow = '';
   drawerTopicId = null;
   currentFocusQ = null;
+  openQuestions.clear();
   restoreFocus();
 }
 
@@ -545,7 +569,7 @@ function renderDrawer() {
   const meterWrap = $('#drawerMeterWrap');
   if (meterWrap) meterWrap.setAttribute('aria-valuenow', String(Math.round(st.frac * 100)));
   $('#drawerMeter').style.width = (st.frac * 100) + '%';
-  $('#drawerMeter').style.background = st.full ? 'var(--green)' : 'linear-gradient(90deg,var(--teal),#2bb9a8)';
+  $('#drawerMeter').style.background = st.full ? 'var(--green)' : 'linear-gradient(90deg,var(--teal),var(--teal-end))';
   $('#drawerProgressText').textContent = `${st.effDone} of ${st.total} questions rated · ${Math.round(st.frac * 100)}%`;
   const toggle = $('#drawerToggle');
   toggle.textContent = s.progress.topics[t.id] ? 'Mark topic as not complete' : 'Mark topic complete';
@@ -586,19 +610,24 @@ function renderDrawer() {
         const conf = s.progress.confidence[q.id] || '';
         const mark = conf === 'know' ? '✓' : conf === 'fuzzy' ? '~' : conf === 'dontknow' ? '✕' : '';
         const label = conf === 'know' ? 'GOT IT' : conf === 'fuzzy' ? 'FUZZY' : conf === 'dontknow' ? 'MISS' : 'Q' + (i + 1);
-        return `<div class="q-item ${conf ? 'conf-' + conf : ''}" data-qid="${esc(q.id)}">
+        const isOpen = openQuestions.has(q.id);
+        const hintText = (isOpen
+          ? (prefs.selfTest ? 'Tap to hide answer' : 'Tap to hide answer & steps')
+          : (prefs.selfTest ? 'Tap to reveal answer &amp; rate' : 'Tap to show answer &amp; steps')) + (isOpen ? ' ▴' : ' ▾');
+        return `<div class="q-item ${conf ? 'conf-' + conf : ''} ${isOpen ? 'open' : ''}" data-qid="${esc(q.id)}">
           <div class="q-head">
             <button type="button" class="q-check js-qcheck" data-qid="${esc(q.id)}" title="${conf ? CONF_LABEL[conf] : 'Rate this question'}" aria-label="${conf ? CONF_LABEL[conf] : 'Rate this question'}" aria-pressed="${conf ? 'true' : 'false'}">${mark}</button>
-            <div class="q-qtext">${esc(q.question)}
-              <div class="q-toggle-hint">${prefs.selfTest ? 'Tap to reveal answer &amp; rate' : 'Tap to show answer &amp; steps'} ▾</div>
-              ${q.source ? `<div class="muted small">${esc(q.source)}</div>` : ''}
-            </div>
+            <button type="button" class="q-toggle js-qtoggle" data-qid="${esc(q.id)}" aria-expanded="${isOpen ? 'true' : 'false'}" aria-controls="qbody-${esc(q.id)}">
+              <span class="q-qtext">${esc(q.question)}</span>
+              <span class="q-toggle-hint">${hintText}</span>
+              ${q.source ? `<span class="muted small q-source">${esc(q.source)}</span>` : ''}
+            </button>
             <div class="q-head-right">
               <span class="pill-mini">${esc(label)}</span>
               <button class="q-edit-btn js-edit-q" data-qid="${esc(q.id)}" type="button" title="Edit question">✎</button>
             </div>
           </div>
-          <div class="q-body">${questionHTML(q, s)}${makeRateRow(s, q)}</div>
+          <div class="q-body" id="qbody-${esc(q.id)}">${questionHTML(q, s)}${makeRateRow(s, q)}</div>
         </div>`;
       }).join('') : '<p class="muted small">No questions yet. Add one, or upload a plan file (.txt/.md/.json/.pdf).</p>'}
     </div>`;
@@ -611,9 +640,28 @@ function renderDrawer() {
     toast('All questions marked Got it');
   });
   $('#clearAllQ').addEventListener('click', () => {
-    t.questions.forEach(q => setConfidence(s, q.id, null));
+    const qids = new Set(t.questions.map(q => q.id));
+    const rated = t.questions.filter(q => s.progress.confidence[q.id]).length;
+    if (rated && !confirm(`Clear ${rated} rating${rated === 1 ? '' : 's'} and their review schedules in "${t.title}"? You can undo this for a few seconds.`)) return;
+    const snapshot = {
+      confidence: Object.fromEntries(Object.entries(s.progress.confidence).filter(([k]) => qids.has(k))),
+      review: Object.fromEntries(Object.entries(s.progress.review).filter(([k]) => qids.has(k))),
+      topicDone: !!s.progress.topics[t.id]
+    };
+    t.questions.forEach(q => {
+      delete s.progress.confidence[q.id];
+      delete s.progress.review[q.id];
+    });
     delete s.progress.topics[t.id];
-    save(); refresh(); toast('Cleared this topic');
+    save(); refresh();
+    toast(`Cleared ${rated} rating${rated === 1 ? '' : 's'}`, {
+      undo: () => {
+        Object.keys(snapshot.confidence).forEach(k => { s.progress.confidence[k] = snapshot.confidence[k]; });
+        Object.keys(snapshot.review).forEach(k => { s.progress.review[k] = snapshot.review[k]; });
+        if (snapshot.topicDone) s.progress.topics[t.id] = true;
+        save(); refresh(); toast('Ratings restored');
+      }
+    });
   });
   $('#addQ').addEventListener('click', () => openQuestionEditor(t.id, null));
 
@@ -627,13 +675,16 @@ function renderDrawer() {
   $('#drawerBody').querySelectorAll('.js-edit-q').forEach(el => el.addEventListener('click', e => {
     e.stopPropagation(); openQuestionEditor(t.id, el.dataset.qid);
   }));
-  $('#drawerBody').querySelectorAll('.q-head').forEach(el => el.addEventListener('click', () => {
+  $('#drawerBody').querySelectorAll('.js-qtoggle').forEach(el => el.addEventListener('click', () => {
     const item = el.closest('.q-item');
-    item.classList.toggle('open');
+    const qid = el.dataset.qid;
+    const open = item.classList.toggle('open');
+    if (open) openQuestions.add(qid); else openQuestions.delete(qid);
+    el.setAttribute('aria-expanded', String(open));
     const hint = el.querySelector('.q-toggle-hint');
-    if (hint) hint.textContent = item.classList.contains('open')
-      ? (prefs.selfTest ? 'Tap to hide answer' : 'Tap to hide answer & steps') + ' ▴'
-      : (prefs.selfTest ? 'Tap to reveal answer & rate' : 'Tap to show answer & steps') + ' ▾';
+    if (hint) hint.textContent = (open
+      ? (prefs.selfTest ? 'Tap to hide answer' : 'Tap to hide answer & steps')
+      : (prefs.selfTest ? 'Tap to reveal answer & rate' : 'Tap to show answer & steps')) + (open ? ' ▴' : ' ▾');
   }));
   $('#drawerBody').querySelectorAll('.rate-btn').forEach(el => el.addEventListener('click', e => {
     e.stopPropagation();
@@ -668,6 +719,9 @@ function renderDrawer() {
     const target = $('#drawerBody .q-item[data-qid="' + CSS.escape(currentFocusQ) + '"]');
     if (target) {
       target.classList.add('open');
+      openQuestions.add(target.dataset.qid);
+      const toggle = target.querySelector('.js-qtoggle');
+      if (toggle) toggle.setAttribute('aria-expanded', 'true');
       setTimeout(() => target.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
     }
     currentFocusQ = null;
@@ -682,6 +736,7 @@ function openModal(html, opts) {
   $('#modal').classList.toggle('wide', !!opts.wide);
   $('#modalOverlay').hidden = false;
   $('#modal').hidden = false;
+  syncInert();
   if (!$('#modal').hasAttribute('tabindex')) $('#modal').setAttribute('tabindex', '-1');
   // Point aria-labelledby at the heading we just rendered so screen readers can read it
   const modal = $('#modal');
@@ -693,13 +748,42 @@ function openModal(html, opts) {
 function closeModal() {
   $('#modalOverlay').hidden = true;
   $('#modal').hidden = true;
+  syncInert();
   $('#modalContent').innerHTML = '';
   $('#modal').classList.remove('wide');
   restoreFocus();
 }
 
 /* ---------------- refresh ---------------- */
+/* Full re-renders would otherwise drop focus to <body> on every rating.
+   Capture a stable identity before rendering and restore it afterwards. */
+function captureFocus() {
+  const el = document.activeElement;
+  if (!el || el === document.body || !el.isConnected) return null;
+  if (el.id) return { id: el.id };
+  const qid = el.getAttribute('data-qid');
+  if (qid) return { qid, rate: el.getAttribute('data-rate') || '' };
+  const topic = el.getAttribute('data-topic');
+  if (topic) return { topic };
+  return null;
+}
+function restoreFocus(sig) {
+  if (!sig) return;
+  let el = null;
+  if (sig.id) el = document.getElementById(sig.id);
+  else {
+    const root = (drawerTopicId && !$('#drawer').hidden) ? $('#drawer') : document;
+    if (sig.qid) {
+      const found = $$('[data-qid="' + CSS.escape(sig.qid) + '"]', root);
+      el = found.find(x => (x.getAttribute('data-rate') || '') === sig.rate) || found[0];
+    } else if (sig.topic) el = $('[data-topic="' + CSS.escape(sig.topic) + '"]', root);
+  }
+  if (el && typeof el.focus === 'function') {
+    try { el.focus({ preventScroll: true }); } catch (e) { el.focus(); }
+  }
+}
 function refresh() {
+  const focusSig = captureFocus();
   ensureIds();
   const s = active();
   if (s) recordScoreChange(s);
@@ -710,13 +794,13 @@ function refresh() {
     else renderDrawer();
   }
   refreshBadges();
+  restoreFocus(focusSig);
 }
 
 /* ---------------- print revision sheet ---------------- */
 async function printRevisionSheet() {
   const s = active(); if (!s) return;
   try {
-    $('#printSheet').innerHTML = buildPrintSheet(s);
     await ensureKaTeX();
     $('#printSheet').innerHTML = buildPrintSheet(s);
     window.print();

@@ -1,0 +1,144 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-28T00:00:00Z",
+  "title": "Design System: Study Hub",
+  "extensions": {
+    "colorMeta": {
+      "teal": {
+        "role": "primary",
+        "displayName": "Confident Teal",
+        "canonical": "#0e7b77",
+        "tonalRamp": ["#05302e", "#084743", "#0a5d58", "#0e7b77", "#17a095", "#5cc4ba", "#9adfd7", "#dff3f0"]
+      },
+      "navy": {
+        "role": "primary",
+        "displayName": "Deep Desk Navy",
+        "canonical": "#10243a",
+        "tonalRamp": ["#060d16", "#0a1625", "#0d1d2f", "#10243a", "#1b3552", "#3a6a9c", "#82a9cc", "#dce8f2"]
+      },
+      "orange": {
+        "role": "secondary",
+        "displayName": "Pace Amber",
+        "canonical": "#d9761b",
+        "tonalRamp": ["#3a1d05", "#63300b", "#8f4a10", "#a3510d", "#d9761b", "#f0a24c", "#f8c98b", "#fdebd2"]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Paper Surface",
+        "canonical": "#ffffff",
+        "tonalRamp": ["#0f141b", "#171f2a", "#5b6b7b", "#e2e9f0", "#f4f7fa", "#f6f9fc", "#ffffff", "#ffffff"]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Score Display", "purpose": "The predicted score numeral only." },
+      "headline": { "displayName": "Headline", "purpose": "Subject and section titles." },
+      "body": { "displayName": "Body", "purpose": "Concepts, answers and explanations." },
+      "mono": { "displayName": "Measurement Mono", "purpose": "Scores, countdown digits, code and formulas." }
+    },
+    "shadows": [
+      { "name": "ambient", "value": "0 1px 2px rgba(16,36,58,.05), 0 8px 24px rgba(16,36,58,.06)", "purpose": "Resting cards and strips." },
+      { "name": "drawer", "value": "-12px 0 40px rgba(16,36,58,.18)", "purpose": "Sliding topic drawer." },
+      { "name": "dialog", "value": "0 24px 60px rgba(0,0,0,.35)", "purpose": "Modal surface." }
+    ],
+    "motion": [
+      { "name": "ease-out-quart", "value": "cubic-bezier(0.25, 1, 0.5, 1)", "purpose": "State changes that start immediately and settle." },
+      { "name": "meter-fill", "value": "width .6s cubic-bezier(.2,.8,.2,1)", "purpose": "Progress feedback only." }
+    ],
+    "breakpoints": [
+      { "name": "desktop", "value": "1280px" },
+      { "name": "tablet", "value": "1080px" },
+      { "name": "phablet", "value": "820px" },
+      { "name": "phone", "value": "700px" },
+      { "name": "small-phone", "value": "460px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The single action that moves the learner forward.",
+      "html": "<button type=\"button\" class=\"ds-btn-primary\">Set exam date</button>",
+      "css": ".ds-btn-primary { background: var(--teal, #0e7b77); color: var(--on-teal, #fff); border: 1px solid transparent; border-radius: 9px; padding: 9px 13px; font: 700 12.5px 'DM Sans', system-ui, sans-serif; cursor: pointer; transition: background .18s ease; } .ds-btn-primary:hover { background: var(--teal-strong, #0a6663); } .ds-btn-primary:focus-visible { outline: 3px solid var(--teal, #0e7b77); outline-offset: 2px; }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Secondary navigation on the navy bar.",
+      "html": "<button type=\"button\" class=\"ds-btn-ghost\">Manage</button>",
+      "css": ".ds-btn-ghost { background: transparent; color: #e4ecf3; border: 1px solid rgba(255,255,255,.2); border-radius: 9px; padding: 9px 11px; font: 700 11.5px 'DM Sans', system-ui, sans-serif; cursor: pointer; } .ds-btn-ghost:hover { background: rgba(255,255,255,.12); } .ds-btn-ghost:focus-visible { outline: 3px solid var(--teal, #0e7b77); outline-offset: 2px; }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "A unit of progress information.",
+      "html": "<div class=\"ds-card\"><span class=\"ds-card-label\">PREDICTED SCORE</span><strong>42 / 60</strong></div>",
+      "css": ".ds-card { background: var(--surface, #fff); color: var(--ink, #1b2733); border: 1px solid var(--line, #e2e9f0); border-radius: 16px; padding: 20px; box-shadow: var(--shadow, 0 1px 2px rgba(16,36,58,.05), 0 8px 24px rgba(16,36,58,.06)); } .ds-card-label { display: block; font: 700 12px 'DM Sans', system-ui, sans-serif; color: var(--muted, #5b6b7b); letter-spacing: .06em; text-transform: uppercase; }"
+    },
+    {
+      "name": "Chip",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Compact metadata that never competes with an action.",
+      "html": "<span class=\"ds-chip\">Every paper</span>",
+      "css": ".ds-chip { display: inline-block; background: var(--surface-3, #eef2f6); color: var(--muted, #5b6b7b); border: 1px solid var(--line, #e2e9f0); border-radius: 999px; padding: 4px 10px; font: 700 11.5px 'DM Sans', system-ui, sans-serif; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "A field with a border and a themed focus ring.",
+      "html": "<label class=\"ds-field\"><span>Target marks</span><input type=\"number\" value=\"30\" /></label>",
+      "css": ".ds-field { display: flex; flex-direction: column; gap: 5px; } .ds-field span { font: 700 12px 'DM Sans', system-ui, sans-serif; color: var(--muted, #5b6b7b); } .ds-field input { width: 100%; background: var(--surface-2, #f6f9fc); color: var(--ink, #1b2733); border: 1px solid var(--line, #e2e9f0); border-radius: 9px; padding: 9px 11px; font: 13px 'DM Sans', system-ui, sans-serif; } .ds-field input:focus { border-color: var(--teal, #0e7b77); box-shadow: 0 0 0 3px var(--focus-ring, rgba(14,123,119,.16)); outline: none; }"
+    },
+    {
+      "name": "Progress Meter",
+      "kind": "custom",
+      "refersTo": "card",
+      "description": "State as a measured bar with a screen-reader value.",
+      "html": "<div class=\"ds-meter\" role=\"progressbar\" aria-label=\"Predicted score\" aria-valuemin=\"0\" aria-valuemax=\"100\" aria-valuenow=\"70\"><div class=\"ds-meter-fill\"></div></div>",
+      "css": ".ds-meter { height: 8px; border-radius: 99px; background: var(--surface-3, #eef2f6); overflow: hidden; } .ds-meter-fill { height: 100%; width: 70%; border-radius: 99px; background: linear-gradient(90deg, var(--teal, #0e7b77), var(--teal-end, #17a095)); transition: width .6s cubic-bezier(.2,.8,.2,1); } @media (prefers-reduced-motion: reduce) { .ds-meter-fill { transition: none; } }"
+    },
+    {
+      "name": "Question Row",
+      "kind": "custom",
+      "refersTo": "card",
+      "description": "The signature blind-recall row: rate, reveal, edit.",
+      "html": "<div class=\"ds-question\"><button type=\"button\" class=\"ds-qcheck\" aria-label=\"GOT IT\" aria-pressed=\"true\">✓</button><button type=\"button\" class=\"ds-qtoggle\" aria-expanded=\"false\">State the recurrence relation<span class=\"ds-qhint\">Tap to show answer ▾</span></button></div>",
+      "css": ".ds-question { display: flex; align-items: flex-start; gap: 10px; background: var(--surface, #fff); border: 1px solid var(--line, #e2e9f0); border-left: 4px solid var(--green, #1f9d63); border-radius: 12px; padding: 14px; } .ds-qcheck { width: 32px; height: 32px; flex: 0 0 auto; border: 2px solid var(--green, #1f9d63); border-radius: 7px; background: var(--green, #1f9d63); color: #fff; font-weight: 800; cursor: pointer; } .ds-qtoggle { flex: 1; min-width: 0; text-align: left; background: transparent; border: 0; padding: 0; color: inherit; font: 600 13.5px 'DM Sans', system-ui, sans-serif; cursor: pointer; } .ds-qhint { display: block; margin-top: 5px; font-size: 11px; color: var(--muted, #5b6b7b); } .ds-qtoggle:focus-visible { outline: 3px solid var(--teal, #0e7b77); outline-offset: 2px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Quiet Exam Desk",
+    "overview": "Study Hub is a desk tool, not a stage. It sits beside a student's own notes and PYQs, holds the count of what is rated and what is due, and stays out of the way. The visual language is deliberate and cool: deep navy for orientation, a single confident teal for action, amber and green reserved for pace and mastery. Density is working density, not dashboard theatre, with the progress summary directly under the exam strip and the topic list following it.",
+    "keyCharacteristics": [
+      "Offline-first and local — no cloud motifs, no marketing chrome.",
+      "One accent carries action; amber, green and red carry state.",
+      "Progress summary above the topics; metrics read as support, not verdict.",
+      "Calm language around exams: pace is a plan, not a deadline."
+    ],
+    "rules": [
+      { "name": "The One Accent Rule", "body": "Teal owns action and focus. It is never used for decoration, and no second action color is introduced.", "section": "colors" },
+      { "name": "The On-Accent Rule", "body": "Text on an accent is a token, not an assumption. Light theme uses white on teal; dark and AMOLED use near-black. Amber always uses dark ink.", "section": "colors" },
+      { "name": "The Weight-Not-Effect Rule", "body": "Emphasis comes from weight and size, never gradient text, glow or shadow.", "section": "typography" },
+      { "name": "The Thumb Rule", "body": "Any control that can be tapped is at least 44px under a coarse pointer; icon-only controls are never the sole label.", "section": "layout" },
+      { "name": "The Border-or-Shadow Rule", "body": "A surface declares depth once: either a hairline border or a shadow, never a border under a wide shadow. Progress cards stay separate; they are never fused into one strip.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do use --on-teal for text on teal in every theme.",
+      "Do pair every state color with a label, mark or icon.",
+      "Do keep the metrics strip directly below the exam summary and above the topic grid.",
+      "Do use role=\"progressbar\" with a numeric aria-valuenow on every meter.",
+      "Do preserve keyboard focus across a re-render."
+    ],
+    "donts": [
+      "Don't put an eyebrow or kicker above a heading.",
+      "Don't use a zero-offset colored glow as elevation.",
+      "Don't hide a primary action at a mobile breakpoint; collapse it into a labelled menu.",
+      "Don't show a verdict pill before the user has rated anything.",
+      "Don't hard-code an accent color that bypasses the theme tokens."
+    ]
+  }
+}
