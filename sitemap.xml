@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://vishn0o.github.io/study-hub/index.html</loc>
-    <lastmod>2026-11-26</lastmod>
+    <loc>https://YOURDOMAIN.github.io/study-hub/index.html</loc>
+    <lastmod>2026-11-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://vishn0o.github.io/study-hub/404.html</loc>
-    <lastmod>2026-11-26</lastmod>
+    <loc>https://YOURDOMAIN.github.io/study-hub/404.html</loc>
+    <lastmod>2026-11-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
